@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MnTfree Futures Landing
 
-## Getting Started
+[futures.mntfree.com](https://futures.mntfree.com)용 랜딩 페이지입니다.  
+반복을 자동화하고, 시간의 자유를 만드는 **선물 트레이딩 시스템**을 소개합니다.
 
-First, run the development server:
+- 구조·자동화·확률적 사고·리스크 관리를 강조
+- 수익 약속 없음, 시스템과 실행 구조 중심
+
+---
+
+## Tech Stack
+
+- **Next.js** 16 (App Router)
+- **React** 19, **TypeScript**
+- **Tailwind CSS** v4
+- **lucide-react** (아이콘)
+
+---
+
+## 로컬 실행
+
+### 사전 요구사항
+
+- Node.js 18+
+- npm (또는 yarn / pnpm)
+
+### 설치 및 실행
 
 ```bash
+# 의존성 설치
+npm install
+
+# 개발 서버 실행 (http://localhost:3000)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 스크립트
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| 명령어 | 설명 |
+|--------|------|
+| `npm run dev` | 개발 서버 (Turbopack) |
+| `npm run build` | 프로덕션 빌드 |
+| `npm run start` | 빌드 결과물로 서버 실행 |
+| `npm run lint` | ESLint 실행 |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 배포 (GitHub 연동)
 
-To learn more about Next.js, take a look at the following resources:
+이 저장소를 **Vercel**에 연결하면 푸시 시 자동 배포됩니다.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. [Vercel](https://vercel.com)에 로그인 후 **Add New Project**
+2. **Import Git Repository**에서 이 GitHub 저장소 선택
+3. Framework Preset: **Next.js** (자동 감지)
+4. **Deploy** 후 제공되는 URL을 `futures.mntfree.com`에 연결
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+또는 Vercel CLI:
 
-## Deploy on Vercel
+```bash
+npm i -g vercel
+vercel
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+도메인 `futures.mntfree.com`은 Vercel 프로젝트 설정의 **Domains**에서 추가하면 됩니다.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 프로젝트 구조
+
+```
+├── app/
+│   ├── layout.tsx    # 메타, 폰트, 루트 레이아웃
+│   ├── page.tsx      # 단일 랜딩 페이지
+│   └── globals.css   # Tailwind + 테마 변수
+├── components/
+│   ├── Hero.tsx
+│   ├── Philosophy.tsx
+│   ├── SystemArchitecture.tsx
+│   ├── RiskSection.tsx
+│   ├── Closing.tsx
+│   └── Footer.tsx
+└── package.json
+```
+
+---
+
+## 라이선스
+
+Private. MnTfree by EVERPRIN.
