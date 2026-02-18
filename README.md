@@ -45,23 +45,48 @@ npm run dev
 
 ---
 
-## 배포 (GitHub 연동)
+## 배포
 
-이 저장소를 **Vercel**에 연결하면 푸시 시 자동 배포됩니다.
+### GitHub Pages (권장)
+
+이 프로젝트는 GitHub Pages에 자동 배포되도록 설정되어 있습니다.
+
+#### 초기 설정 (한 번만)
+
+1. GitHub 저장소 **Settings** → **Pages**
+2. **Source**: `GitHub Actions` 선택
+3. 저장소에 푸시하면 자동으로 배포됩니다
+
+#### 자동 배포
+
+- `main` 브랜치에 푸시하면 GitHub Actions가 자동으로 빌드 및 배포
+- 워크플로우: `.github/workflows/deploy.yml`
+
+#### 커스텀 도메인 연결
+
+1. GitHub 저장소 **Settings** → **Pages**
+2. **Custom domain**에 `futures.mntfree.com` 입력
+3. DNS 설정:
+   - **A 레코드**: `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
+   - 또는 **CNAME**: `[username].github.io`
+
+#### 수동 배포
+
+```bash
+npm run build
+# out/ 폴더를 GitHub Pages에 업로드
+```
+
+### Vercel (대안)
+
+Vercel을 사용하려면:
 
 1. [Vercel](https://vercel.com)에 로그인 후 **Add New Project**
 2. **Import Git Repository**에서 이 GitHub 저장소 선택
 3. Framework Preset: **Next.js** (자동 감지)
-4. **Deploy** 후 제공되는 URL을 `futures.mntfree.com`에 연결
+4. **Deploy**
 
-또는 Vercel CLI:
-
-```bash
-npm i -g vercel
-vercel
-```
-
-도메인 `futures.mntfree.com`은 Vercel 프로젝트 설정의 **Domains**에서 추가하면 됩니다.
+> **참고**: GitHub Pages 배포를 위해서는 `next.config.ts`에서 `output: "export"`가 설정되어 있습니다. Vercel을 사용할 경우 이 설정을 제거하면 더 나은 성능을 얻을 수 있습니다.
 
 ---
 
