@@ -92,8 +92,10 @@ export default function SymbolStats({ data }: SymbolStatsProps) {
   }, [data, normalizeVolume]);
 
   const formatValue = (value: number) => {
-    if (value >= 0) return `$${value.toFixed(2)}`;
-    return `-$${Math.abs(value).toFixed(2)}`;
+    const absValue = Math.abs(value);
+    const formatted = absValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (value >= 0) return `$${formatted}`;
+    return `-$${formatted}`;
   };
 
   return (
@@ -244,10 +246,10 @@ export default function SymbolStats({ data }: SymbolStatsProps) {
           </div>
           <div className="text-center text-sm text-[var(--muted)] py-3">
             {chartDataType === "trades"
-              ? `총 ${totalTrades}건`
+              ? `거래 총 ${totalTrades.toLocaleString()}건`
               : chartDataType === "profit"
-              ? `총 ${formatValue(totalProfit)}`
-              : `총 ${totalVolume.toFixed(2)} 랏`}
+              ? `수익 총 ${formatValue(totalProfit)}`
+              : `거래량 총 ${totalVolume.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 랏`}
           </div>
         </div>
       ) : (
