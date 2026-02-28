@@ -282,7 +282,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
           }`}
         >
           <Link className="h-4 w-4" />
-          구글 시트 링크
+          구글시트 URL
         </button>
         <button
           onClick={() => setMode("server")}
@@ -293,7 +293,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
           }`}
         >
           <Server className="h-4 w-4" />
-          서버 파일 선택
+          서버파일 선택
         </button>
       </div>
 
@@ -331,7 +331,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
             </p>
           </label>
           <p className="mt-3 text-xs text-[var(--muted)]">
-            업로드된 파일은 브라우저에 저장되어 &quot;서버 파일 선택&quot;에서 재사용할 수 있습니다.
+            업로드된 파일은 브라우저에 저장되어 &quot;서버파일 선택&quot;에서 재사용할 수 있습니다.
           </p>
         </div>
       ) : mode === "link" ? (
