@@ -42,11 +42,15 @@ export interface MonthlyProfit {
 export interface AnalysisSummary {
   totalTrades: number;
   totalProfit: number;
+  totalGrossProfit: number;
+  totalCommission: number;
+  totalSwap: number;
   winCount: number;
   lossCount: number;
   winRate: number;
   avgWin: number;
   avgLoss: number;
+  profitLossRatio: number;
 }
 
 export interface DateRange {

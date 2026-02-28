@@ -53,6 +53,9 @@ export function calculateSummary(records: TradeRecord[]): AnalysisSummary {
   const validRecords = records.filter((r) => r.청산시간 && r.실수익 !== null);
   const totalTrades = validRecords.length;
   const totalProfit = validRecords.reduce((sum, r) => sum + r.실수익, 0);
+  const totalGrossProfit = validRecords.reduce((sum, r) => sum + (r.수익 || 0), 0);
+  const totalCommission = validRecords.reduce((sum, r) => sum + (r.커미션 || 0), 0);
+  const totalSwap = validRecords.reduce((sum, r) => sum + (r.스왑 || 0), 0);
 
   const wins = validRecords.filter((r) => r.실수익 > 0);
   const losses = validRecords.filter((r) => r.실수익 < 0);
@@ -64,15 +67,20 @@ export function calculateSummary(records: TradeRecord[]): AnalysisSummary {
   const avgWin = winCount > 0 ? wins.reduce((s, r) => s + r.실수익, 0) / winCount : 0;
   const avgLoss =
     lossCount > 0 ? losses.reduce((s, r) => s + r.실수익, 0) / lossCount : 0;
+  const profitLossRatio = avgLoss !== 0 ? Math.abs(avgWin / avgLoss) : 0;
 
   return {
     totalTrades,
     totalProfit,
+    totalGrossProfit,
+    totalCommission,
+    totalSwap,
     winCount,
     lossCount,
     winRate,
     avgWin,
     avgLoss,
+    profitLossRatio,
   };
 }
 
