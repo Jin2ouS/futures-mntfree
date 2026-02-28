@@ -95,7 +95,7 @@ export default function ProfitChart({ data, type, showLabels, showBySymbol = fal
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
           data={chartData}
-          margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+          margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
           stackOffset={showBySymbol && type === "daily" ? "sign" : undefined}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.5} />
@@ -106,10 +106,11 @@ export default function ProfitChart({ data, type, showLabels, showBySymbol = fal
             axisLine={{ stroke: "var(--border)" }}
             angle={-45}
             textAnchor="end"
-            height={60}
+            height={80}
             interval={type === "daily" && data.length > 20 ? Math.floor(data.length / 15) : 0}
             orientation="bottom"
             xAxisId="bottom"
+            tickMargin={10}
           />
           <YAxis
             tick={{ fill: "var(--muted)", fontSize: 11 }}
@@ -239,10 +240,10 @@ export default function ProfitChart({ data, type, showLabels, showBySymbol = fal
                   return (
                     <text
                       x={Number(x ?? 0)}
-                      y={Number(y ?? 0) - 10}
+                      y={Number(y ?? 0) - 12}
                       fill="#3b82f6"
-                      fontSize={11}
-                      fontWeight="500"
+                      fontSize={14}
+                      fontWeight="600"
                       textAnchor="middle"
                     >
                       {formatValue(numValue)}

@@ -98,7 +98,7 @@ export default function SummaryCards({ summary }: SummaryCardsProps) {
         <div className="rounded-lg border border-[var(--border)] bg-white/[0.02] p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-[var(--muted)]">
-              평균 수익/손실
+              평균 수익
             </span>
             <TrendingUp className="h-4 w-4 text-[var(--muted)]" />
           </div>
@@ -106,7 +106,7 @@ export default function SummaryCards({ summary }: SummaryCardsProps) {
             {displayCurrency(summary.avgWin, true)}
           </p>
           <p className="text-xs text-[var(--muted)] mt-1">
-            {displayCurrency(summary.avgLoss)} / 손익비 {summary.profitLossRatio.toFixed(2)}
+            평균 손실 {displayCurrency(summary.avgLoss)} / 손익비 {summary.profitLossRatio.toFixed(2)}
           </p>
         </div>
       </div>
