@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Calendar } from "lucide-react";
 import ProfitTable from "./ProfitTable";
 import ProfitChart from "./ProfitChart";
+import ProfitCalendar from "./ProfitCalendar";
 import type { DailyProfit, WeeklyProfit, MonthlyProfit } from "@/lib/types";
 
 interface AnalysisTabsProps {
@@ -13,10 +14,12 @@ interface AnalysisTabsProps {
 }
 
 type TabType = "daily" | "weekly" | "monthly";
+type ViewMode = "chart" | "calendar";
 type ChartData = DailyProfit[] | WeeklyProfit[] | MonthlyProfit[];
 
 export default function AnalysisTabs({ daily, weekly, monthly }: AnalysisTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>("daily");
+  const [viewMode, setViewMode] = useState<ViewMode>("chart");
   const [showLabels, setShowLabels] = useState(false);
   const [showBySymbol, setShowBySymbol] = useState(false);
 
@@ -58,7 +61,7 @@ export default function AnalysisTabs({ daily, weekly, monthly }: AnalysisTabsPro
         </div>
 
         <div className="flex items-center gap-3">
-          {activeTab === "daily" && (
+          {activeTab === "daily" && viewMode === "chart" && (
             <label className="flex items-center gap-2 cursor-pointer text-xs">
               <input
                 type="checkbox"
@@ -69,29 +72,51 @@ export default function AnalysisTabs({ daily, weekly, monthly }: AnalysisTabsPro
               <span className="text-[var(--muted)]">종목별 구분</span>
             </label>
           )}
+
+          {activeTab === "daily" && (
+            <button
+              onClick={() => setViewMode(viewMode === "chart" ? "calendar" : "chart")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                viewMode === "calendar"
+                  ? "bg-blue-500/20 text-blue-400"
+                  : "text-[var(--muted)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              <Calendar className="h-3 w-3" />
+              달력 보기
+            </button>
+          )}
           
-          <button
-            onClick={() => setShowLabels(!showLabels)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              showLabels
-                ? "bg-blue-500/20 text-blue-400"
-                : "text-[var(--muted)] hover:text-[var(--foreground)]"
-            }`}
-          >
-            {showLabels ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-            값 라벨
-          </button>
+          {viewMode === "chart" && (
+            <button
+              onClick={() => setShowLabels(!showLabels)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                showLabels
+                  ? "bg-blue-500/20 text-blue-400"
+                  : "text-[var(--muted)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              {showLabels ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+              값 라벨
+            </button>
+          )}
         </div>
       </div>
 
       <div className="p-4 space-y-6">
-        <ProfitChart 
-          data={getData} 
-          type={activeTab} 
-          showLabels={showLabels} 
-          showBySymbol={showBySymbol && activeTab === "daily"}
-        />
-        <ProfitTable data={getData} type={activeTab} />
+        {viewMode === "calendar" && activeTab === "daily" ? (
+          <ProfitCalendar data={daily} />
+        ) : (
+          <>
+            <ProfitChart 
+              data={getData} 
+              type={activeTab} 
+              showLabels={showLabels} 
+              showBySymbol={showBySymbol && activeTab === "daily"}
+            />
+            <ProfitTable data={getData} type={activeTab} />
+          </>
+        )}
       </div>
     </div>
   );
