@@ -19,7 +19,7 @@ type ChartData = DailyProfit[] | WeeklyProfit[] | MonthlyProfit[];
 
 export default function AnalysisTabs({ daily, weekly, monthly }: AnalysisTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>("daily");
-  const [tableViewMode, setTableViewMode] = useState<TableViewMode>("table");
+  const [tableViewMode, setTableViewMode] = useState<TableViewMode>("calendar");
   const [showLabels, setShowLabels] = useState(false);
   const [showBySymbol, setShowBySymbol] = useState(false);
 
@@ -107,17 +107,6 @@ export default function AnalysisTabs({ daily, weekly, monthly }: AnalysisTabsPro
             {activeTab === "daily" && (
               <div className="flex items-center gap-1 bg-white/5 rounded-md p-0.5">
                 <button
-                  onClick={() => setTableViewMode("table")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                    tableViewMode === "table"
-                      ? "bg-white/10 text-[var(--foreground)]"
-                      : "text-[var(--muted)] hover:text-[var(--foreground)]"
-                  }`}
-                >
-                  <Table className="h-3 w-3" />
-                  테이블
-                </button>
-                <button
                   onClick={() => setTableViewMode("calendar")}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                     tableViewMode === "calendar"
@@ -127,6 +116,17 @@ export default function AnalysisTabs({ daily, weekly, monthly }: AnalysisTabsPro
                 >
                   <Calendar className="h-3 w-3" />
                   달력
+                </button>
+                <button
+                  onClick={() => setTableViewMode("table")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                    tableViewMode === "table"
+                      ? "bg-white/10 text-[var(--foreground)]"
+                      : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  <Table className="h-3 w-3" />
+                  테이블
                 </button>
               </div>
             )}
