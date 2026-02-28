@@ -40,26 +40,42 @@ function getLocalFiles(): LocalFile[] {
   }
 }
 
-function saveLocalFile(name: string, data: ArrayBuffer): boolean {
+function generateUniqueFileName(name: string, existingFiles: LocalFile[]): string {
+  const existingNames = new Set(existingFiles.map((f) => f.name));
+  if (!existingNames.has(name)) {
+    return name;
+  }
+  
+  const now = new Date();
+  const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+  
+  const lastDotIndex = name.lastIndexOf('.');
+  if (lastDotIndex === -1) {
+    return `${name}_${timestamp}`;
+  }
+  
+  const baseName = name.substring(0, lastDotIndex);
+  const extension = name.substring(lastDotIndex);
+  return `${baseName}_${timestamp}${extension}`;
+}
+
+function saveLocalFile(name: string, data: ArrayBuffer): string | null {
   try {
     const files = getLocalFiles();
     const base64 = btoa(
       new Uint8Array(data).reduce((data, byte) => data + String.fromCharCode(byte), "")
     );
-    const existing = files.findIndex((f) => f.name === name);
-    const newFile: LocalFile = { name, data: base64, savedAt: new Date().toISOString() };
     
-    if (existing >= 0) {
-      files[existing] = newFile;
-    } else {
-      files.unshift(newFile);
-    }
+    const uniqueName = generateUniqueFileName(name, files);
+    const newFile: LocalFile = { name: uniqueName, data: base64, savedAt: new Date().toISOString() };
+    
+    files.unshift(newFile);
     
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(files.slice(0, 10)));
-    return true;
+    return uniqueName;
   } catch (err) {
     console.error("Failed to save file to localStorage:", err);
-    return false;
+    return null;
   }
 }
 
@@ -122,7 +138,10 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
         }
 
         if (saveToLocal) {
-          saveLocalFile(file.name, buffer);
+          const savedName = saveLocalFile(file.name, buffer);
+          if (savedName) {
+            setFileName(savedName);
+          }
           setLocalFiles(getLocalFiles());
         }
 
@@ -331,7 +350,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
             </p>
           </label>
           <p className="mt-3 text-xs text-[var(--muted)]">
-            업로드된 파일은 브라우저에 저장되어 &quot;서버파일 선택&quot;에서 재사용할 수 있습니다.
+            업로드 된 파일은 서버에 저장되어, &quot;서버파일 선택&quot; 메뉴에서 확인할 수 있습니다.
           </p>
         </div>
       ) : mode === "link" ? (
