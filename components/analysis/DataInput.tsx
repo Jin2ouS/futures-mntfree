@@ -82,7 +82,7 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 }
 
 export default function DataInput({ onDataLoaded }: DataInputProps) {
-  const [mode, setMode] = useState<"upload" | "link" | "server">("server");
+  const [mode, setMode] = useState<"upload" | "link" | "server">("upload");
   const [googleUrl, setGoogleUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -263,17 +263,6 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
     <div className="rounded-lg border border-[var(--border)] bg-white/[0.02] p-6">
       <div className="flex gap-2 mb-4">
         <button
-          onClick={() => setMode("server")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            mode === "server"
-              ? "bg-white/10 text-[var(--foreground)]"
-              : "text-[var(--muted)] hover:text-[var(--foreground)]"
-          }`}
-        >
-          <Server className="h-4 w-4" />
-          서버 파일 선택
-        </button>
-        <button
           onClick={() => setMode("upload")}
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
             mode === "upload"
@@ -295,9 +284,84 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
           <Link className="h-4 w-4" />
           구글 시트 링크
         </button>
+        <button
+          onClick={() => setMode("server")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            mode === "server"
+              ? "bg-white/10 text-[var(--foreground)]"
+              : "text-[var(--muted)] hover:text-[var(--foreground)]"
+          }`}
+        >
+          <Server className="h-4 w-4" />
+          서버 파일 선택
+        </button>
       </div>
 
-      {mode === "server" ? (
+      {mode === "upload" ? (
+        <div
+          onDrop={handleDrop}
+          onDragOver={(e) => e.preventDefault()}
+          className="border-2 border-dashed border-[var(--border)] rounded-lg p-8 text-center cursor-pointer hover:border-[var(--muted)] transition-colors"
+        >
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleFileSelect}
+            className="hidden"
+            id="file-upload"
+          />
+          <label htmlFor="file-upload" className="cursor-pointer">
+            {loading ? (
+              <Loader2 className="h-10 w-10 mx-auto text-[var(--muted)] animate-spin" />
+            ) : fileName ? (
+              <FileSpreadsheet className="h-10 w-10 mx-auto text-green-500" />
+            ) : (
+              <Upload className="h-10 w-10 mx-auto text-[var(--muted)]" />
+            )}
+            <p className="mt-4 text-sm text-[var(--muted)]">
+              {fileName ? (
+                <span className="text-[var(--foreground)]">{fileName}</span>
+              ) : (
+                <>
+                  클릭하여 파일 선택 또는 드래그 앤 드롭
+                  <br />
+                  <span className="text-xs">.xlsx, .xls 파일 지원</span>
+                </>
+              )}
+            </p>
+          </label>
+          <p className="mt-3 text-xs text-[var(--muted)]">
+            업로드된 파일은 브라우저에 저장되어 &quot;서버 파일 선택&quot;에서 재사용할 수 있습니다.
+          </p>
+        </div>
+      ) : mode === "link" ? (
+        <div className="space-y-4">
+          <div>
+            <input
+              type="text"
+              value={googleUrl}
+              onChange={(e) => setGoogleUrl(e.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/..."
+              className="w-full px-4 py-2 rounded-md bg-white/5 border border-[var(--border)] text-[var(--foreground)] placeholder-[var(--muted)] text-sm focus:outline-none focus:border-[var(--muted)]"
+            />
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              구글 드라이브에서 파일을 구글 시트로 열고, 공유 설정을 &quot;링크가 있는 모든 사용자&quot;로 변경하세요.
+            </p>
+          </div>
+          <button
+            onClick={handleGoogleLink}
+            disabled={loading}
+            className="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-md bg-white/10 text-[var(--foreground)] text-sm font-medium hover:bg-white/15 transition-colors disabled:opacity-50"
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Link className="h-4 w-4" />
+            )}
+            데이터 불러오기
+          </button>
+        </div>
+      ) : (
         <div className="space-y-4">
           {serverLoading ? (
             <div className="flex items-center justify-center py-8">
@@ -361,70 +425,6 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
               )}
             </>
           )}
-        </div>
-      ) : mode === "upload" ? (
-        <div
-          onDrop={handleDrop}
-          onDragOver={(e) => e.preventDefault()}
-          className="border-2 border-dashed border-[var(--border)] rounded-lg p-8 text-center cursor-pointer hover:border-[var(--muted)] transition-colors"
-        >
-          <input
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleFileSelect}
-            className="hidden"
-            id="file-upload"
-          />
-          <label htmlFor="file-upload" className="cursor-pointer">
-            {loading ? (
-              <Loader2 className="h-10 w-10 mx-auto text-[var(--muted)] animate-spin" />
-            ) : fileName ? (
-              <FileSpreadsheet className="h-10 w-10 mx-auto text-green-500" />
-            ) : (
-              <Upload className="h-10 w-10 mx-auto text-[var(--muted)]" />
-            )}
-            <p className="mt-4 text-sm text-[var(--muted)]">
-              {fileName ? (
-                <span className="text-[var(--foreground)]">{fileName}</span>
-              ) : (
-                <>
-                  클릭하여 파일 선택 또는 드래그 앤 드롭
-                  <br />
-                  <span className="text-xs">.xlsx, .xls 파일 지원</span>
-                </>
-              )}
-            </p>
-          </label>
-          <p className="mt-3 text-xs text-[var(--muted)]">
-            업로드된 파일은 브라우저에 저장되어 &quot;서버 파일 선택&quot;에서 재사용할 수 있습니다.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div>
-            <input
-              type="text"
-              value={googleUrl}
-              onChange={(e) => setGoogleUrl(e.target.value)}
-              placeholder="https://docs.google.com/spreadsheets/d/..."
-              className="w-full px-4 py-2 rounded-md bg-white/5 border border-[var(--border)] text-[var(--foreground)] placeholder-[var(--muted)] text-sm focus:outline-none focus:border-[var(--muted)]"
-            />
-            <p className="mt-2 text-xs text-[var(--muted)]">
-              구글 드라이브에서 파일을 구글 시트로 열고, 공유 설정을 &quot;링크가 있는 모든 사용자&quot;로 변경하세요.
-            </p>
-          </div>
-          <button
-            onClick={handleGoogleLink}
-            disabled={loading}
-            className="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-md bg-white/10 text-[var(--foreground)] text-sm font-medium hover:bg-white/15 transition-colors disabled:opacity-50"
-          >
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Link className="h-4 w-4" />
-            )}
-            데이터 불러오기
-          </button>
         </div>
       )}
 

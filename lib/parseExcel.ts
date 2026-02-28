@@ -58,6 +58,7 @@ export function parseExcelFile(buffer: ArrayBuffer): TradeRecord[] {
   const dataRows = jsonData.slice(headerRowIndex + 1);
 
   const records: TradeRecord[] = [];
+  const has실수익Column = headers.includes("실수익");
 
   for (const row of dataRows) {
     if (!row || row.every((cell) => cell === null || cell === "")) continue;
@@ -69,7 +70,18 @@ export function parseExcelFile(buffer: ArrayBuffer): TradeRecord[] {
       }
     });
 
-    if (!record["실수익"] && record["실수익"] !== 0) continue;
+    const 커미션 = Number(record["커미션"]) || 0;
+    const 스왑 = Number(record["스왑"]) || 0;
+    const 수익 = Number(record["수익"]) || 0;
+
+    let 실수익: number;
+    if (has실수익Column && (record["실수익"] !== null && record["실수익"] !== undefined && record["실수익"] !== "")) {
+      실수익 = Number(record["실수익"]) || 0;
+    } else {
+      실수익 = 커미션 + 스왑 + 수익;
+    }
+
+    if (실수익 === 0 && 수익 === 0) continue;
 
     const tradeRecord: TradeRecord = {
       진입시간: parseExcelDate(record["진입시간"]),
@@ -82,11 +94,11 @@ export function parseExcelFile(buffer: ArrayBuffer): TradeRecord[] {
       "T / P": record["T / P"] != null ? Number(record["T / P"]) : null,
       청산시간: parseExcelDate(record["청산시간"]),
       청산가격: Number(record["청산가격"]) || 0,
-      커미션: Number(record["커미션"]) || 0,
-      스왑: Number(record["스왑"]) || 0,
-      수익: Number(record["수익"]) || 0,
+      커미션,
+      스왑,
+      수익,
       계좌번호: record["계좌번호"] ? String(record["계좌번호"]) : null,
-      실수익: Number(record["실수익"]) || 0,
+      실수익,
       진입기준: record["진입기준"] ? String(record["진입기준"]) : null,
       비고: record["비고"] ? String(record["비고"]) : null,
     };
