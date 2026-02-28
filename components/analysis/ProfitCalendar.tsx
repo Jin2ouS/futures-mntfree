@@ -137,11 +137,11 @@ export default function ProfitCalendar({ data }: ProfitCalendarProps) {
               {WEEKDAYS.map((day, idx) => (
                 <th
                   key={day}
-                  className={`py-2 px-1 text-center font-medium border-b border-[var(--border)] ${
+                  className={`py-2 px-0.5 sm:px-1 text-center font-medium border-b border-[var(--border)] ${
                     idx === 5 ? "text-blue-400" : idx === 6 ? "text-red-400" : "text-[var(--muted)]"
                   }`}
                 >
-                  {day}요일
+                  {day}
                 </th>
               ))}
               <th className="py-2 px-1 text-center font-medium text-[var(--muted)] border-b border-[var(--border)]">
@@ -155,7 +155,7 @@ export default function ProfitCalendar({ data }: ProfitCalendarProps) {
                 {week.map((day, dayIdx) => (
                   <td
                     key={dayIdx}
-                    className={`py-3 px-1 text-center align-top border-b border-[var(--border)] min-w-[80px] ${
+                    className={`py-2 sm:py-3 px-0.5 sm:px-1 text-center align-top border-b border-[var(--border)] min-w-[45px] sm:min-w-[70px] ${
                       !day.isCurrentMonth ? "opacity-30" : ""
                     }`}
                   >
@@ -177,7 +177,7 @@ export default function ProfitCalendar({ data }: ProfitCalendarProps) {
                     )}
                   </td>
                 ))}
-                <td className="py-3 px-1 text-center align-middle border-b border-[var(--border)] bg-white/[0.02] min-w-[90px]">
+                <td className="py-2 sm:py-3 px-0.5 sm:px-1 text-center align-middle border-b border-[var(--border)] bg-white/[0.02] min-w-[55px] sm:min-w-[80px]">
                   <div className="text-xs text-[var(--muted)] mb-1">W{weekIdx + 1}</div>
                   {weeklyTotals[weekIdx] !== null && (
                     <div
