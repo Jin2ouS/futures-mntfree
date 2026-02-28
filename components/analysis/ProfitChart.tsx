@@ -1,0 +1,194 @@
+"use client";
+
+import { useMemo } from "react";
+import {
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+  LabelList,
+} from "recharts";
+import type { DailyProfit, WeeklyProfit, MonthlyProfit } from "@/lib/types";
+
+type ChartData = DailyProfit[] | WeeklyProfit[] | MonthlyProfit[];
+
+const SYMBOL_COLORS: Record<string, string> = {
+  "XAUUSD.b": "#3b82f6",
+  "US100.b": "#10b981",
+  "USOIL+": "#f59e0b",
+  "EURUSD.b": "#8b5cf6",
+  "USDJPY.b": "#ec4899",
+  "BTCUSD": "#06b6d4",
+};
+
+const DEFAULT_SYMBOL_COLOR = "#6b7280";
+
+interface ProfitChartProps {
+  data: ChartData;
+  type: "daily" | "weekly" | "monthly";
+  showLabels: boolean;
+  showBySymbol?: boolean;
+}
+
+export default function ProfitChart({ data, type, showLabels, showBySymbol = false }: ProfitChartProps) {
+  if (data.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[400px] text-[var(--muted)]">
+        데이터가 없습니다.
+      </div>
+    );
+  }
+
+  const allSymbols = useMemo(() => {
+    if (!showBySymbol || type !== "daily") return [];
+    const symbols = new Set<string>();
+    (data as DailyProfit[]).forEach((item) => {
+      if (item.bySymbol) {
+        Object.keys(item.bySymbol).forEach((s) => symbols.add(s));
+      }
+    });
+    return Array.from(symbols).sort();
+  }, [data, showBySymbol, type]);
+
+  const chartData = useMemo(() => {
+    return data.map((item) => {
+      const base = {
+        ...item,
+        xLabel:
+          type === "daily"
+            ? (item as DailyProfit).date.slice(5)
+            : type === "weekly"
+            ? (item as WeeklyProfit).label
+            : (item as MonthlyProfit).month,
+      };
+      
+      if (showBySymbol && type === "daily" && (item as DailyProfit).bySymbol) {
+        const bySymbol = (item as DailyProfit).bySymbol!;
+        allSymbols.forEach((symbol) => {
+          (base as Record<string, unknown>)[symbol] = bySymbol[symbol] || 0;
+        });
+      }
+      
+      return base;
+    });
+  }, [data, type, showBySymbol, allSymbols]);
+
+  const formatValue = (value: number) => {
+    if (Math.abs(value) >= 1000) {
+      return `${(value / 1000).toFixed(1)}k`;
+    }
+    return value.toFixed(0);
+  };
+
+  const getSymbolColor = (symbol: string) => {
+    return SYMBOL_COLORS[symbol] || DEFAULT_SYMBOL_COLOR;
+  };
+
+  return (
+    <div className="h-[400px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart
+          data={chartData}
+          margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+          stackOffset={showBySymbol && type === "daily" ? "sign" : undefined}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.5} />
+          <XAxis
+            dataKey="xLabel"
+            tick={{ fill: "var(--muted)", fontSize: 11 }}
+            tickLine={{ stroke: "var(--border)" }}
+            axisLine={{ stroke: "var(--border)" }}
+            angle={-45}
+            textAnchor="end"
+            height={60}
+            interval={type === "daily" && data.length > 20 ? Math.floor(data.length / 15) : 0}
+          />
+          <YAxis
+            tick={{ fill: "var(--muted)", fontSize: 11 }}
+            tickLine={{ stroke: "var(--border)" }}
+            axisLine={{ stroke: "var(--border)" }}
+            tickFormatter={formatValue}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "#ffffff",
+              border: "1px solid #e5e7eb",
+              borderRadius: "8px",
+              color: "#1f2937",
+              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+            }}
+            itemStyle={{ color: "#1f2937" }}
+            labelStyle={{ color: "#1f2937", fontWeight: "bold" }}
+            formatter={(value, name) => {
+              const numValue = typeof value === "number" ? value : 0;
+              if (name === "cumulative") {
+                return [`$${numValue.toFixed(2)}`, "누적 실수익"];
+              }
+              if (name === "profit") {
+                return [`$${numValue.toFixed(2)}`, "실수익"];
+              }
+              return [`$${numValue.toFixed(2)}`, name];
+            }}
+            labelFormatter={(label) => `${type === "daily" ? "일자" : type === "weekly" ? "주간" : "월"}: ${label}`}
+          />
+          <Legend
+            wrapperStyle={{ color: "var(--foreground)" }}
+            formatter={(value) => {
+              if (value === "profit") return "실수익";
+              if (value === "cumulative") return "누적 실수익";
+              return value;
+            }}
+          />
+          
+          {showBySymbol && type === "daily" ? (
+            allSymbols.map((symbol) => (
+              <Bar
+                key={symbol}
+                dataKey={symbol}
+                name={symbol}
+                stackId="symbols"
+                fill={getSymbolColor(symbol)}
+              />
+            ))
+          ) : (
+            <Bar dataKey="profit" name="profit" radius={[4, 4, 0, 0]}>
+              {chartData.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={entry.profit >= 0 ? "#22c55e" : "#ef4444"}
+                />
+              ))}
+              {showLabels && (
+                <LabelList
+                  dataKey="profit"
+                  position="top"
+                  formatter={(value) => {
+                    const numValue = typeof value === "number" ? value : 0;
+                    return numValue !== 0 ? formatValue(numValue) : "";
+                  }}
+                  style={{ fill: "var(--muted)", fontSize: 10 }}
+                />
+              )}
+            </Bar>
+          )}
+          
+          <Line
+            type="monotone"
+            dataKey="cumulative"
+            name="cumulative"
+            stroke="#3b82f6"
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 4, fill: "#3b82f6" }}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
