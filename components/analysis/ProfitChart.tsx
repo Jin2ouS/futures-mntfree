@@ -147,14 +147,38 @@ export default function ProfitChart({ data, type, showLabels, showBySymbol = fal
           />
           
           {showBySymbol && type === "daily" ? (
-            allSymbols.map((symbol) => (
+            allSymbols.map((symbol, idx) => (
               <Bar
                 key={symbol}
                 dataKey={symbol}
                 name={symbol}
                 stackId="symbols"
                 fill={getSymbolColor(symbol)}
-              />
+              >
+                {showLabels && idx === allSymbols.length - 1 && (
+                  <LabelList
+                    dataKey="profit"
+                    content={({ x, y, width, value }) => {
+                      const numValue = typeof value === "number" ? value : 0;
+                      if (numValue === 0) return null;
+                      const isNegative = numValue < 0;
+                      const labelX = Number(x ?? 0) + Number(width ?? 0) / 2;
+                      const labelY = isNegative ? Number(y ?? 0) + 15 : Number(y ?? 0) - 5;
+                      return (
+                        <text
+                          x={labelX}
+                          y={labelY}
+                          fill={isNegative ? "#ef4444" : "#9ca3af"}
+                          fontSize={10}
+                          textAnchor="middle"
+                        >
+                          {formatValue(numValue)}
+                        </text>
+                      );
+                    }}
+                  />
+                )}
+              </Bar>
             ))
           ) : (
             <Bar dataKey="profit" name="profit" radius={[4, 4, 0, 0]}>
@@ -167,12 +191,24 @@ export default function ProfitChart({ data, type, showLabels, showBySymbol = fal
               {showLabels && (
                 <LabelList
                   dataKey="profit"
-                  position="top"
-                  formatter={(value) => {
+                  content={({ x, y, width, value }) => {
                     const numValue = typeof value === "number" ? value : 0;
-                    return numValue !== 0 ? formatValue(numValue) : "";
+                    if (numValue === 0) return null;
+                    const isNegative = numValue < 0;
+                    const labelX = Number(x ?? 0) + Number(width ?? 0) / 2;
+                    const labelY = isNegative ? Number(y ?? 0) + 15 : Number(y ?? 0) - 5;
+                    return (
+                      <text
+                        x={labelX}
+                        y={labelY}
+                        fill={isNegative ? "#ef4444" : "#9ca3af"}
+                        fontSize={10}
+                        textAnchor="middle"
+                      >
+                        {formatValue(numValue)}
+                      </text>
+                    );
                   }}
-                  style={{ fill: "var(--muted)", fontSize: 10 }}
                 />
               )}
             </Bar>

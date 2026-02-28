@@ -175,9 +175,10 @@ export default function SymbolStats({ data }: SymbolStatsProps) {
       </div>
 
       {viewMode === "chart" ? (
-        <div className="h-[525px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart margin={{ top: 40, right: 80, bottom: 40, left: 80 }}>
+        <div className="flex flex-col">
+          <div className="h-[480px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart margin={{ top: 40, right: 80, bottom: 40, left: 80 }}>
               <Pie
                 data={chartData}
                 cx="50%"
@@ -238,9 +239,10 @@ export default function SymbolStats({ data }: SymbolStatsProps) {
                 }}
               />
               <Legend wrapperStyle={{ paddingTop: "20px" }} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="text-center text-sm text-[var(--muted)] mt-2">
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="text-center text-sm text-[var(--muted)] py-3">
             {chartDataType === "trades"
               ? `총 ${totalTrades}건`
               : chartDataType === "profit"
