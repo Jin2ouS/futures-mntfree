@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { startOfWeek, endOfWeek, format } from "date-fns";
+import { startOfWeek, format } from "date-fns";
 import type { DateRange } from "@/lib/types";
 
 interface DateFilterProps {
@@ -10,38 +10,34 @@ interface DateFilterProps {
   maxDate?: string;
 }
 
-function getRecentWeekRange() {
+function getDefaultDateRange() {
   const today = new Date();
   const monday = startOfWeek(today, { weekStartsOn: 1 });
-  const sunday = endOfWeek(today, { weekStartsOn: 1 });
   return {
     start: format(monday, "yyyy-MM-dd"),
-    end: format(sunday, "yyyy-MM-dd"),
+    end: format(today, "yyyy-MM-dd"),
   };
 }
 
 export default function DateFilter({ onChange, minDate, maxDate }: DateFilterProps) {
-  const weekRange = useMemo(() => getRecentWeekRange(), []);
+  const defaultRange = useMemo(() => getDefaultDateRange(), []);
   const [isFullRange, setIsFullRange] = useState(true);
-  const [startDate, setStartDate] = useState(weekRange.start);
-  const [endDate, setEndDate] = useState(weekRange.end);
+  const [startDate, setStartDate] = useState(defaultRange.start);
+  const [endDate, setEndDate] = useState(defaultRange.end);
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     if (minDate && maxDate && !initialized) {
-      const weekStart = new Date(weekRange.start);
-      const weekEnd = new Date(weekRange.end);
+      const rangeStart = new Date(defaultRange.start);
       const dataMin = new Date(minDate);
-      const dataMax = new Date(maxDate);
       
-      const adjustedStart = weekStart < dataMin ? minDate : weekRange.start;
-      const adjustedEnd = weekEnd > dataMax ? maxDate : weekRange.end;
+      const adjustedStart = rangeStart < dataMin ? minDate : defaultRange.start;
       
       setStartDate(adjustedStart);
-      setEndDate(adjustedEnd);
+      setEndDate(defaultRange.end);
       setInitialized(true);
     }
-  }, [minDate, maxDate, weekRange, initialized]);
+  }, [minDate, maxDate, defaultRange, initialized]);
 
   useEffect(() => {
     onChange({

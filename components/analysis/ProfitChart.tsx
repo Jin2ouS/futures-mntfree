@@ -108,6 +108,8 @@ export default function ProfitChart({ data, type, showLabels, showBySymbol = fal
             textAnchor="end"
             height={60}
             interval={type === "daily" && data.length > 20 ? Math.floor(data.length / 15) : 0}
+            orientation="bottom"
+            xAxisId="bottom"
           />
           <YAxis
             tick={{ fill: "var(--muted)", fontSize: 11 }}
@@ -154,6 +156,7 @@ export default function ProfitChart({ data, type, showLabels, showBySymbol = fal
                 name={symbol}
                 stackId="symbols"
                 fill={getSymbolColor(symbol)}
+                xAxisId="bottom"
               >
                 {showLabels && idx === allSymbols.length - 1 && (
                   <LabelList
@@ -163,13 +166,14 @@ export default function ProfitChart({ data, type, showLabels, showBySymbol = fal
                       if (numValue === 0) return null;
                       const isNegative = numValue < 0;
                       const labelX = Number(x ?? 0) + Number(width ?? 0) / 2;
-                      const labelY = isNegative ? Number(y ?? 0) + 15 : Number(y ?? 0) - 5;
+                      const labelY = isNegative ? Number(y ?? 0) + 18 : Number(y ?? 0) - 8;
                       return (
                         <text
                           x={labelX}
                           y={labelY}
-                          fill={isNegative ? "#ef4444" : "#9ca3af"}
-                          fontSize={10}
+                          fill={isNegative ? "#ef4444" : "#d1d5db"}
+                          fontSize={13}
+                          fontWeight="500"
                           textAnchor="middle"
                         >
                           {formatValue(numValue)}
@@ -181,7 +185,7 @@ export default function ProfitChart({ data, type, showLabels, showBySymbol = fal
               </Bar>
             ))
           ) : (
-            <Bar dataKey="profit" name="profit" radius={[4, 4, 0, 0]}>
+            <Bar dataKey="profit" name="profit" radius={[4, 4, 0, 0]} xAxisId="bottom">
               {chartData.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
@@ -196,13 +200,14 @@ export default function ProfitChart({ data, type, showLabels, showBySymbol = fal
                     if (numValue === 0) return null;
                     const isNegative = numValue < 0;
                     const labelX = Number(x ?? 0) + Number(width ?? 0) / 2;
-                    const labelY = isNegative ? Number(y ?? 0) + 15 : Number(y ?? 0) - 5;
+                    const labelY = isNegative ? Number(y ?? 0) + 18 : Number(y ?? 0) - 8;
                     return (
                       <text
                         x={labelX}
                         y={labelY}
-                        fill={isNegative ? "#ef4444" : "#9ca3af"}
-                        fontSize={10}
+                        fill={isNegative ? "#ef4444" : "#d1d5db"}
+                        fontSize={13}
+                        fontWeight="500"
                         textAnchor="middle"
                       >
                         {formatValue(numValue)}
@@ -222,7 +227,31 @@ export default function ProfitChart({ data, type, showLabels, showBySymbol = fal
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4, fill: "#3b82f6" }}
-          />
+            xAxisId="bottom"
+          >
+            {showLabels && (
+              <LabelList
+                dataKey="cumulative"
+                content={({ x, y, value, index }) => {
+                  const numValue = typeof value === "number" ? value : 0;
+                  const showEvery = data.length > 10 ? Math.ceil(data.length / 8) : 1;
+                  if ((index ?? 0) % showEvery !== 0 && index !== data.length - 1) return null;
+                  return (
+                    <text
+                      x={Number(x ?? 0)}
+                      y={Number(y ?? 0) - 10}
+                      fill="#3b82f6"
+                      fontSize={11}
+                      fontWeight="500"
+                      textAnchor="middle"
+                    >
+                      {formatValue(numValue)}
+                    </text>
+                  );
+                }}
+              />
+            )}
+          </Line>
         </ComposedChart>
       </ResponsiveContainer>
     </div>
