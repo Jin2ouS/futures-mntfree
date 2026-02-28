@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Eye, EyeOff, Calendar } from "lucide-react";
+import { Eye, EyeOff, Calendar, Table } from "lucide-react";
 import ProfitTable from "./ProfitTable";
 import ProfitChart from "./ProfitChart";
 import ProfitCalendar from "./ProfitCalendar";
@@ -14,12 +14,12 @@ interface AnalysisTabsProps {
 }
 
 type TabType = "daily" | "weekly" | "monthly";
-type ViewMode = "chart" | "calendar";
+type TableViewMode = "table" | "calendar";
 type ChartData = DailyProfit[] | WeeklyProfit[] | MonthlyProfit[];
 
 export default function AnalysisTabs({ daily, weekly, monthly }: AnalysisTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>("daily");
-  const [viewMode, setViewMode] = useState<ViewMode>("chart");
+  const [tableViewMode, setTableViewMode] = useState<TableViewMode>("table");
   const [showLabels, setShowLabels] = useState(false);
   const [showBySymbol, setShowBySymbol] = useState(false);
 
@@ -42,6 +42,7 @@ export default function AnalysisTabs({ daily, weekly, monthly }: AnalysisTabsPro
 
   return (
     <div className="rounded-lg border border-[var(--border)] bg-white/[0.02] overflow-hidden">
+      {/* Header with tabs and chart controls */}
       <div className="flex flex-wrap items-center justify-between gap-4 p-4 border-b border-[var(--border)]">
         <div className="flex gap-1">
           {tabs.map((tab) => (
@@ -61,7 +62,7 @@ export default function AnalysisTabs({ daily, weekly, monthly }: AnalysisTabsPro
         </div>
 
         <div className="flex items-center gap-3">
-          {activeTab === "daily" && viewMode === "chart" && (
+          {activeTab === "daily" && (
             <label className="flex items-center gap-2 cursor-pointer text-xs">
               <input
                 type="checkbox"
@@ -73,50 +74,70 @@ export default function AnalysisTabs({ daily, weekly, monthly }: AnalysisTabsPro
             </label>
           )}
 
-          {activeTab === "daily" && (
-            <button
-              onClick={() => setViewMode(viewMode === "chart" ? "calendar" : "chart")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                viewMode === "calendar"
-                  ? "bg-blue-500/20 text-blue-400"
-                  : "text-[var(--muted)] hover:text-[var(--foreground)]"
-              }`}
-            >
-              <Calendar className="h-3 w-3" />
-              달력 보기
-            </button>
-          )}
-          
-          {viewMode === "chart" && (
-            <button
-              onClick={() => setShowLabels(!showLabels)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                showLabels
-                  ? "bg-blue-500/20 text-blue-400"
-                  : "text-[var(--muted)] hover:text-[var(--foreground)]"
-              }`}
-            >
-              {showLabels ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-              값 라벨
-            </button>
-          )}
+          <button
+            onClick={() => setShowLabels(!showLabels)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              showLabels
+                ? "bg-blue-500/20 text-blue-400"
+                : "text-[var(--muted)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            {showLabels ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+            값 라벨
+          </button>
         </div>
       </div>
 
       <div className="p-4 space-y-6">
-        {viewMode === "calendar" && activeTab === "daily" ? (
-          <ProfitCalendar data={daily} />
-        ) : (
-          <>
-            <ProfitChart 
-              data={getData} 
-              type={activeTab} 
-              showLabels={showLabels} 
-              showBySymbol={showBySymbol && activeTab === "daily"}
-            />
+        {/* Chart Section - Always visible */}
+        <div>
+          <h3 className="text-sm font-medium text-[var(--muted)] mb-3">차트</h3>
+          <ProfitChart 
+            data={getData} 
+            type={activeTab} 
+            showLabels={showLabels} 
+            showBySymbol={showBySymbol && activeTab === "daily"}
+          />
+        </div>
+
+        {/* Table Section - With optional calendar view for daily */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-[var(--muted)]">테이블</h3>
+            {activeTab === "daily" && (
+              <div className="flex items-center gap-1 bg-white/5 rounded-md p-0.5">
+                <button
+                  onClick={() => setTableViewMode("table")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                    tableViewMode === "table"
+                      ? "bg-white/10 text-[var(--foreground)]"
+                      : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  <Table className="h-3 w-3" />
+                  테이블
+                </button>
+                <button
+                  onClick={() => setTableViewMode("calendar")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                    tableViewMode === "calendar"
+                      ? "bg-white/10 text-[var(--foreground)]"
+                      : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  <Calendar className="h-3 w-3" />
+                  달력
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {activeTab === "daily" && tableViewMode === "calendar" ? (
+            <ProfitCalendar data={daily} />
+          ) : (
             <ProfitTable data={getData} type={activeTab} />
-          </>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
