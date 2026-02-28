@@ -21,7 +21,7 @@ function getDefaultDateRange() {
 
 export default function DateFilter({ onChange, minDate, maxDate }: DateFilterProps) {
   const defaultRange = useMemo(() => getDefaultDateRange(), []);
-  const [isFullRange, setIsFullRange] = useState(true);
+  const [isFullRange, setIsFullRange] = useState(false);
   const [startDate, setStartDate] = useState(defaultRange.start);
   const [endDate, setEndDate] = useState(defaultRange.end);
   const [initialized, setInitialized] = useState(false);

@@ -98,9 +98,6 @@ export default function AnalysisPage() {
             </section>
 
             <section>
-              <h2 className="text-xl font-bold text-[var(--foreground)] mb-4">
-                수익 요약
-              </h2>
               <SummaryCards summary={summary} />
             </section>
 

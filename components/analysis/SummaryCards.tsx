@@ -28,7 +28,10 @@ export default function SummaryCards({ summary }: SummaryCardsProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-[var(--foreground)]">
+          수익 요약
+        </h2>
         <button
           onClick={() => setShowAmount(!showAmount)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
@@ -45,7 +48,7 @@ export default function SummaryCards({ summary }: SummaryCardsProps) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-lg border border-[var(--border)] bg-white/[0.02] p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs uppercase tracking-wider text-[var(--muted)]">
+            <span className="text-sm font-medium text-[var(--muted)]">
               총 거래
             </span>
             <BarChart3 className="h-4 w-4 text-[var(--muted)]" />
@@ -60,7 +63,7 @@ export default function SummaryCards({ summary }: SummaryCardsProps) {
 
         <div className="rounded-lg border border-[var(--border)] bg-white/[0.02] p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs uppercase tracking-wider text-[var(--muted)]">
+            <span className="text-sm font-medium text-[var(--muted)]">
               총 실수익
             </span>
             {summary.totalProfit >= 0 ? (
@@ -79,7 +82,7 @@ export default function SummaryCards({ summary }: SummaryCardsProps) {
 
         <div className="rounded-lg border border-[var(--border)] bg-white/[0.02] p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs uppercase tracking-wider text-[var(--muted)]">
+            <span className="text-sm font-medium text-[var(--muted)]">
               승률
             </span>
             <Percent className="h-4 w-4 text-[var(--muted)]" />
@@ -94,7 +97,7 @@ export default function SummaryCards({ summary }: SummaryCardsProps) {
 
         <div className="rounded-lg border border-[var(--border)] bg-white/[0.02] p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs uppercase tracking-wider text-[var(--muted)]">
+            <span className="text-sm font-medium text-[var(--muted)]">
               평균 수익/손실
             </span>
             <TrendingUp className="h-4 w-4 text-[var(--muted)]" />
