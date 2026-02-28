@@ -22,7 +22,7 @@ interface LocalFile {
 }
 
 const LOCAL_STORAGE_KEY = "futures-uploaded-files";
-const BASE_PATH = process.env.NODE_ENV === "production" ? "/futures-mntfree" : "";
+const BASE_PATH = "";
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
