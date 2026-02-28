@@ -20,7 +20,7 @@ interface ProfitCalendarProps {
   data: DailyProfit[];
 }
 
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
 
 export default function ProfitCalendar({ data }: ProfitCalendarProps) {
   const dataMonths = useMemo(() => {
@@ -53,8 +53,8 @@ export default function ProfitCalendar({ data }: ProfitCalendarProps) {
   const calendarData = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
 
     const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
@@ -100,10 +100,8 @@ export default function ProfitCalendar({ data }: ProfitCalendarProps) {
 
   const formatProfit = (value: number) => {
     const absValue = Math.abs(value);
-    if (absValue >= 1000) {
-      return value >= 0 ? `+${(value / 1000).toFixed(1)}k` : `${(value / 1000).toFixed(1)}k`;
-    }
-    return value >= 0 ? `+${value.toFixed(0)}` : value.toFixed(0);
+    const formatted = absValue.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    return value >= 0 ? `+${formatted}` : `-${formatted}`;
   };
 
   const formatProfitFull = (value: number) => {
@@ -140,7 +138,7 @@ export default function ProfitCalendar({ data }: ProfitCalendarProps) {
                 <th
                   key={day}
                   className={`py-2 px-1 text-center font-medium border-b border-[var(--border)] ${
-                    idx === 0 ? "text-red-400" : idx === 6 ? "text-blue-400" : "text-[var(--muted)]"
+                    idx === 5 ? "text-blue-400" : idx === 6 ? "text-red-400" : "text-[var(--muted)]"
                   }`}
                 >
                   {day}요일
@@ -163,7 +161,7 @@ export default function ProfitCalendar({ data }: ProfitCalendarProps) {
                   >
                     <div
                       className={`text-xs mb-1 ${
-                        dayIdx === 0 ? "text-red-400" : dayIdx === 6 ? "text-blue-400" : "text-[var(--muted)]"
+                        dayIdx === 5 ? "text-blue-400" : dayIdx === 6 ? "text-red-400" : "text-[var(--muted)]"
                       }`}
                     >
                       {format(day.date, "d")}
