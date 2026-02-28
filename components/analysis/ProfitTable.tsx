@@ -1,8 +1,11 @@
 "use client";
 
+import { useState, useMemo } from "react";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import type { DailyProfit, WeeklyProfit, MonthlyProfit } from "@/lib/types";
 
 type TableData = DailyProfit[] | WeeklyProfit[] | MonthlyProfit[];
+type SortOrder = "asc" | "desc";
 
 interface ProfitTableProps {
   data: TableData;
@@ -10,6 +13,8 @@ interface ProfitTableProps {
 }
 
 export default function ProfitTable({ data, type }: ProfitTableProps) {
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+
   if (data.length === 0) {
     return (
       <div className="text-center py-8 text-[var(--muted)]">
@@ -17,6 +22,10 @@ export default function ProfitTable({ data, type }: ProfitTableProps) {
       </div>
     );
   }
+
+  const sortedData = useMemo(() => {
+    return sortOrder === "desc" ? [...data].reverse() : data;
+  }, [data, sortOrder]);
 
   const total = data.reduce((sum, item) => sum + item.profit, 0);
 
@@ -32,13 +41,27 @@ export default function ProfitTable({ data, type }: ProfitTableProps) {
     monthly: "월",
   };
 
+  const toggleSort = () => {
+    setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+  };
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-[var(--border)]">
-            <th className="text-left py-3 px-4 text-[var(--muted)] font-medium">
-              {headers[type]}
+            <th 
+              className="text-left py-3 px-4 text-[var(--muted)] font-medium cursor-pointer hover:text-[var(--foreground)] transition-colors select-none"
+              onClick={toggleSort}
+            >
+              <span className="inline-flex items-center gap-1">
+                {headers[type]}
+                {sortOrder === "asc" ? (
+                  <ArrowUp className="h-3 w-3" />
+                ) : (
+                  <ArrowDown className="h-3 w-3" />
+                )}
+              </span>
             </th>
             <th className="text-right py-3 px-4 text-[var(--muted)] font-medium">
               실수익
@@ -49,7 +72,7 @@ export default function ProfitTable({ data, type }: ProfitTableProps) {
           </tr>
         </thead>
         <tbody>
-          {data.map((item, idx) => (
+          {sortedData.map((item, idx) => (
             <tr
               key={idx}
               className="border-b border-[var(--border)] hover:bg-white/[0.02]"

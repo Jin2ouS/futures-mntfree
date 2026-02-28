@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Eye, EyeOff, ArrowUp, ArrowDown } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import ProfitTable from "./ProfitTable";
 import ProfitChart from "./ProfitChart";
 import type { DailyProfit, WeeklyProfit, MonthlyProfit } from "@/lib/types";
@@ -13,14 +13,12 @@ interface AnalysisTabsProps {
 }
 
 type TabType = "daily" | "weekly" | "monthly";
-type SortOrder = "asc" | "desc";
 type ChartData = DailyProfit[] | WeeklyProfit[] | MonthlyProfit[];
 
 export default function AnalysisTabs({ daily, weekly, monthly }: AnalysisTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>("daily");
   const [showLabels, setShowLabels] = useState(false);
   const [showBySymbol, setShowBySymbol] = useState(false);
-  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
 
   const tabs = [
     { id: "daily" as const, label: "일별", count: daily.length },
@@ -28,24 +26,16 @@ export default function AnalysisTabs({ daily, weekly, monthly }: AnalysisTabsPro
     { id: "monthly" as const, label: "월별", count: monthly.length },
   ];
 
-  const handleTabClick = (tabId: TabType) => {
-    if (activeTab === tabId) {
-      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
-    } else {
-      setActiveTab(tabId);
-    }
-  };
-
   const getData = useMemo((): ChartData => {
     switch (activeTab) {
       case "daily":
-        return sortOrder === "desc" ? [...daily].reverse() : daily;
+        return daily;
       case "weekly":
-        return sortOrder === "desc" ? [...weekly].reverse() : weekly;
+        return weekly;
       case "monthly":
-        return sortOrder === "desc" ? [...monthly].reverse() : monthly;
+        return monthly;
     }
-  }, [activeTab, daily, weekly, monthly, sortOrder]);
+  }, [activeTab, daily, weekly, monthly]);
 
   return (
     <div className="rounded-lg border border-[var(--border)] bg-white/[0.02] overflow-hidden">
@@ -54,7 +44,7 @@ export default function AnalysisTabs({ daily, weekly, monthly }: AnalysisTabsPro
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => handleTabClick(tab.id)}
+              onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 activeTab === tab.id
                   ? "bg-white/10 text-[var(--foreground)]"
@@ -63,13 +53,6 @@ export default function AnalysisTabs({ daily, weekly, monthly }: AnalysisTabsPro
             >
               {tab.label}
               <span className="text-xs opacity-60">({tab.count})</span>
-              {activeTab === tab.id && (
-                sortOrder === "asc" ? (
-                  <ArrowUp className="h-3 w-3 ml-0.5" />
-                ) : (
-                  <ArrowDown className="h-3 w-3 ml-0.5" />
-                )
-              )}
             </button>
           ))}
         </div>
