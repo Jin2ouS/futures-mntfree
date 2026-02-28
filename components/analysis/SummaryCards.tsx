@@ -7,7 +7,7 @@ interface SummaryCardsProps {
 
 function formatCurrency(value: number, showSign = false): string {
   const absValue = Math.abs(value);
-  const formatted = `$${absValue.toFixed(2)}`;
+  const formatted = `$${absValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   if (showSign) {
     return value >= 0 ? `+${formatted}` : `-${formatted}`;
   }
