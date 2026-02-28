@@ -51,6 +51,7 @@ export interface AnalysisSummary {
   avgWin: number;
   avgLoss: number;
   profitLossRatio: number;
+  tradingDays: number;
 }
 
 export interface DateRange {

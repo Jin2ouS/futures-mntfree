@@ -57,6 +57,14 @@ export function calculateSummary(records: TradeRecord[]): AnalysisSummary {
   const totalCommission = validRecords.reduce((sum, r) => sum + (r.커미션 || 0), 0);
   const totalSwap = validRecords.reduce((sum, r) => sum + (r.스왑 || 0), 0);
 
+  const uniqueDays = new Set<string>();
+  for (const r of validRecords) {
+    if (r.청산시간) {
+      uniqueDays.add(format(r.청산시간, "yyyy-MM-dd"));
+    }
+  }
+  const tradingDays = uniqueDays.size;
+
   const wins = validRecords.filter((r) => r.실수익 > 0);
   const losses = validRecords.filter((r) => r.실수익 < 0);
 
@@ -81,6 +89,7 @@ export function calculateSummary(records: TradeRecord[]): AnalysisSummary {
     avgWin,
     avgLoss,
     profitLossRatio,
+    tradingDays,
   };
 }
 

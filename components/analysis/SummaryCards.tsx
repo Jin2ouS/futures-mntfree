@@ -54,10 +54,25 @@ export default function SummaryCards({ summary }: SummaryCardsProps) {
             <BarChart3 className="h-4 w-4 text-[var(--muted)]" />
           </div>
           <p className="text-2xl font-semibold text-[var(--foreground)]">
-            {summary.totalTrades.toLocaleString()}
+            {summary.totalTrades.toLocaleString()} 건
           </p>
           <p className="text-xs text-[var(--muted)] mt-1">
-            승 {summary.winCount} / 패 {summary.lossCount}
+            일평균 {summary.tradingDays > 0 ? (summary.totalTrades / summary.tradingDays).toFixed(1) : 0}건 / 승 {summary.winCount}건 / 패 {summary.lossCount}건
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-[var(--border)] bg-white/[0.02] p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-[var(--muted)]">
+              승률
+            </span>
+            <Percent className="h-4 w-4 text-[var(--muted)]" />
+          </div>
+          <p className="text-2xl font-semibold text-[var(--foreground)]">
+            {summary.winRate.toFixed(1)}%
+          </p>
+          <p className="text-xs text-[var(--muted)] mt-1">
+            {summary.totalTrades}건 중 {summary.winCount}건
           </p>
         </div>
 
@@ -77,21 +92,6 @@ export default function SummaryCards({ summary }: SummaryCardsProps) {
           </p>
           <p className="text-xs text-[var(--muted)] mt-1">
             수익 {displayCurrency(summary.totalGrossProfit)} / 커미션 {displayCurrency(summary.totalCommission)} / 스왑 {displayCurrency(summary.totalSwap)}
-          </p>
-        </div>
-
-        <div className="rounded-lg border border-[var(--border)] bg-white/[0.02] p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-[var(--muted)]">
-              승률
-            </span>
-            <Percent className="h-4 w-4 text-[var(--muted)]" />
-          </div>
-          <p className="text-2xl font-semibold text-[var(--foreground)]">
-            {summary.winRate.toFixed(1)}%
-          </p>
-          <p className="text-xs text-[var(--muted)] mt-1">
-            {summary.totalTrades}건 중 {summary.winCount}건
           </p>
         </div>
 
