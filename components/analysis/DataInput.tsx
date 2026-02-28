@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { Upload, Link, FileSpreadsheet, Loader2 } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { Upload, Link, FileSpreadsheet, Loader2, Server, Trash2 } from "lucide-react";
 import { parseExcelFile, parseGoogleSheetUrl, getGoogleSheetExportUrl } from "@/lib/parseExcel";
 import type { TradeRecord } from "@/lib/types";
 
@@ -9,15 +9,106 @@ interface DataInputProps {
   onDataLoaded: (records: TradeRecord[]) => void;
 }
 
+interface ServerFile {
+  name: string;
+  size: number;
+  modified: string;
+}
+
+interface LocalFile {
+  name: string;
+  data: string;
+  savedAt: string;
+}
+
+const LOCAL_STORAGE_KEY = "futures-uploaded-files";
+const BASE_PATH = process.env.NODE_ENV === "production" ? "/futures-mntfree" : "";
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getLocalFiles(): LocalFile[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalFile(name: string, data: ArrayBuffer): boolean {
+  try {
+    const files = getLocalFiles();
+    const base64 = btoa(
+      new Uint8Array(data).reduce((data, byte) => data + String.fromCharCode(byte), "")
+    );
+    const existing = files.findIndex((f) => f.name === name);
+    const newFile: LocalFile = { name, data: base64, savedAt: new Date().toISOString() };
+    
+    if (existing >= 0) {
+      files[existing] = newFile;
+    } else {
+      files.unshift(newFile);
+    }
+    
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(files.slice(0, 10)));
+    return true;
+  } catch (err) {
+    console.error("Failed to save file to localStorage:", err);
+    return false;
+  }
+}
+
+function deleteLocalFile(name: string): void {
+  try {
+    const files = getLocalFiles().filter((f) => f.name !== name);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(files));
+  } catch {
+    // ignore
+  }
+}
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
 export default function DataInput({ onDataLoaded }: DataInputProps) {
-  const [mode, setMode] = useState<"upload" | "link">("upload");
+  const [mode, setMode] = useState<"upload" | "link" | "server">("server");
   const [googleUrl, setGoogleUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  
+  const [serverFiles, setServerFiles] = useState<ServerFile[]>([]);
+  const [localFiles, setLocalFiles] = useState<LocalFile[]>([]);
+  const [serverLoading, setServerLoading] = useState(false);
+
+  useEffect(() => {
+    setLocalFiles(getLocalFiles());
+  }, []);
+
+  useEffect(() => {
+    if (mode === "server") {
+      setServerLoading(true);
+      fetch(`${BASE_PATH}/data/files.json`)
+        .then((res) => res.json())
+        .then((data) => setServerFiles(data))
+        .catch(() => setServerFiles([]))
+        .finally(() => setServerLoading(false));
+    }
+  }, [mode]);
 
   const handleFileUpload = useCallback(
-    async (file: File) => {
+    async (file: File, saveToLocal = true) => {
       setLoading(true);
       setError(null);
       setFileName(file.name);
@@ -28,6 +119,11 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
 
         if (records.length === 0) {
           throw new Error("유효한 거래 데이터를 찾을 수 없습니다.");
+        }
+
+        if (saveToLocal) {
+          saveLocalFile(file.name, buffer);
+          setLocalFiles(getLocalFiles());
         }
 
         onDataLoaded(records);
@@ -102,9 +198,81 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
     }
   }, [googleUrl, onDataLoaded]);
 
+  const handleServerFileSelect = useCallback(
+    async (file: ServerFile) => {
+      setLoading(true);
+      setError(null);
+      setFileName(file.name);
+
+      try {
+        const response = await fetch(`${BASE_PATH}/data/${encodeURIComponent(file.name)}`);
+        if (!response.ok) {
+          throw new Error("파일을 가져올 수 없습니다.");
+        }
+
+        const buffer = await response.arrayBuffer();
+        const records = parseExcelFile(buffer);
+
+        if (records.length === 0) {
+          throw new Error("유효한 거래 데이터를 찾을 수 없습니다.");
+        }
+
+        onDataLoaded(records);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "파일 로드 실패");
+        setFileName(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [onDataLoaded]
+  );
+
+  const handleLocalFileSelect = useCallback(
+    async (file: LocalFile) => {
+      setLoading(true);
+      setError(null);
+      setFileName(file.name);
+
+      try {
+        const buffer = base64ToArrayBuffer(file.data);
+        const records = parseExcelFile(buffer);
+
+        if (records.length === 0) {
+          throw new Error("유효한 거래 데이터를 찾을 수 없습니다.");
+        }
+
+        onDataLoaded(records);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "파일 로드 실패");
+        setFileName(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [onDataLoaded]
+  );
+
+  const handleDeleteLocalFile = useCallback((name: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    deleteLocalFile(name);
+    setLocalFiles(getLocalFiles());
+  }, []);
+
   return (
     <div className="rounded-lg border border-[var(--border)] bg-white/[0.02] p-6">
       <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setMode("server")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            mode === "server"
+              ? "bg-white/10 text-[var(--foreground)]"
+              : "text-[var(--muted)] hover:text-[var(--foreground)]"
+          }`}
+        >
+          <Server className="h-4 w-4" />
+          서버 파일 선택
+        </button>
         <button
           onClick={() => setMode("upload")}
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -129,7 +297,72 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
         </button>
       </div>
 
-      {mode === "upload" ? (
+      {mode === "server" ? (
+        <div className="space-y-4">
+          {serverLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 text-[var(--muted)] animate-spin" />
+            </div>
+          ) : (
+            <>
+              {serverFiles.length > 0 && (
+                <div>
+                  <p className="text-xs text-[var(--muted)] mb-2">서버 파일</p>
+                  <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                    {serverFiles.map((file) => (
+                      <button
+                        key={file.name}
+                        onClick={() => handleServerFileSelect(file)}
+                        disabled={loading}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-left text-sm transition-colors hover:bg-white/10 disabled:opacity-50 ${
+                          fileName === file.name ? "bg-white/10 border border-blue-500/50" : "bg-white/5"
+                        }`}
+                      >
+                        <FileSpreadsheet className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <span className="flex-1 truncate text-[var(--foreground)]">{file.name}</span>
+                        <span className="text-xs text-[var(--muted)]">{formatFileSize(file.size)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {localFiles.length > 0 && (
+                <div>
+                  <p className="text-xs text-[var(--muted)] mb-2">최근 업로드 (브라우저 저장)</p>
+                  <div className="space-y-1 max-h-[150px] overflow-y-auto">
+                    {localFiles.map((file) => (
+                      <button
+                        key={file.name}
+                        onClick={() => handleLocalFileSelect(file)}
+                        disabled={loading}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-left text-sm transition-colors hover:bg-white/10 disabled:opacity-50 ${
+                          fileName === file.name ? "bg-white/10 border border-blue-500/50" : "bg-white/5"
+                        }`}
+                      >
+                        <FileSpreadsheet className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                        <span className="flex-1 truncate text-[var(--foreground)]">{file.name}</span>
+                        <button
+                          onClick={(e) => handleDeleteLocalFile(file.name, e)}
+                          className="p-1 rounded hover:bg-red-500/20 text-[var(--muted)] hover:text-red-400 transition-colors"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {serverFiles.length === 0 && localFiles.length === 0 && (
+                <div className="text-center py-8 text-[var(--muted)] text-sm">
+                  서버에 파일이 없습니다. 파일을 업로드하세요.
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      ) : mode === "upload" ? (
         <div
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
@@ -162,6 +395,9 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
               )}
             </p>
           </label>
+          <p className="mt-3 text-xs text-[var(--muted)]">
+            업로드된 파일은 브라우저에 저장되어 &quot;서버 파일 선택&quot;에서 재사용할 수 있습니다.
+          </p>
         </div>
       ) : (
         <div className="space-y-4">
