@@ -242,6 +242,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
   const [previewLoading, setPreviewLoading] = useState(false);
   
   const [fileErrors, setFileErrors] = useState<Map<string, string>>(new Map());
+  const [expandedErrors, setExpandedErrors] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setLocalFiles(getLocalFiles());
@@ -631,6 +632,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
     setMergeLoading(true);
     setError(null);
     setFileErrors(new Map());
+    setExpandedErrors(new Set());
     
     const fileNames: string[] = [];
     const allRecords: TradeRecord[] = [];
@@ -795,8 +797,36 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
           )}
         </button>
         {hasError && (
-          <div className="ml-6 px-2 py-1 text-xs text-red-400 bg-red-500/5 rounded">
-            {fileErrors.get(displayName)?.split("\n")[0]}
+          <div className="ml-6">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpandedErrors(prev => {
+                  const newSet = new Set(prev);
+                  if (newSet.has(displayName)) {
+                    newSet.delete(displayName);
+                  } else {
+                    newSet.add(displayName);
+                  }
+                  return newSet;
+                });
+              }}
+              className="w-full text-left px-2 py-1 text-xs text-red-400 bg-red-500/5 rounded hover:bg-red-500/10 transition-colors"
+            >
+              <div className="flex items-start gap-1">
+                <span className="flex-shrink-0">{expandedErrors.has(displayName) ? "▼" : "▶"}</span>
+                <span className="flex-1">
+                  {expandedErrors.has(displayName) 
+                    ? fileErrors.get(displayName)
+                    : fileErrors.get(displayName)?.split("\n")[0]}
+                </span>
+              </div>
+            </button>
+            {expandedErrors.has(displayName) && (
+              <pre className="mt-1 px-2 py-2 text-xs text-red-400/80 bg-red-500/5 rounded whitespace-pre-wrap font-sans border border-red-500/20">
+                {fileErrors.get(displayName)}
+              </pre>
+            )}
           </div>
         )}
       </div>
