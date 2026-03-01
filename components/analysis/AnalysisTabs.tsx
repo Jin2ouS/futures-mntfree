@@ -5,19 +5,20 @@ import { Eye, EyeOff, Calendar, Table } from "lucide-react";
 import ProfitTable from "./ProfitTable";
 import ProfitChart from "./ProfitChart";
 import ProfitCalendar from "./ProfitCalendar";
-import type { DailyProfit, WeeklyProfit, MonthlyProfit } from "@/lib/types";
+import type { DailyProfit, WeeklyProfit, MonthlyProfit, TradeRecord } from "@/lib/types";
 
 interface AnalysisTabsProps {
   daily: DailyProfit[];
   weekly: WeeklyProfit[];
   monthly: MonthlyProfit[];
+  trades: TradeRecord[];
 }
 
 type TabType = "daily" | "weekly" | "monthly";
 type TableViewMode = "table" | "calendar";
 type ChartData = DailyProfit[] | WeeklyProfit[] | MonthlyProfit[];
 
-export default function AnalysisTabs({ daily, weekly, monthly }: AnalysisTabsProps) {
+export default function AnalysisTabs({ daily, weekly, monthly, trades }: AnalysisTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>("daily");
   const [tableViewMode, setTableViewMode] = useState<TableViewMode>("calendar");
   const [showLabels, setShowLabels] = useState(false);
@@ -133,7 +134,7 @@ export default function AnalysisTabs({ daily, weekly, monthly }: AnalysisTabsPro
           </div>
           
           {activeTab === "daily" && tableViewMode === "calendar" ? (
-            <ProfitCalendar data={daily} />
+            <ProfitCalendar data={daily} trades={trades} />
           ) : (
             <ProfitTable data={getData} type={activeTab} />
           )}

@@ -112,7 +112,7 @@ export default function AnalysisPage() {
               <h2 className="text-xl font-bold text-[var(--foreground)] mb-4">
                 기간별 수익 분석
               </h2>
-              <AnalysisTabs daily={daily} weekly={weekly} monthly={monthly} />
+              <AnalysisTabs daily={daily} weekly={weekly} monthly={monthly} trades={filteredData} />
             </section>
           </>
         )}
