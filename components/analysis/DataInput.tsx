@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { Upload, Link, FileSpreadsheet, Loader2, Server, Trash2 } from "lucide-react";
+import { Upload, Link, FileSpreadsheet, Loader2, Server, Trash2, AlertTriangle } from "lucide-react";
 import { parseExcelFile, parseGoogleSheetUrl, getGoogleSheetExportUrl } from "@/lib/parseExcel";
 import type { TradeRecord } from "@/lib/types";
 
@@ -23,6 +23,20 @@ interface LocalFile {
 
 const LOCAL_STORAGE_KEY = "futures-uploaded-files";
 const BASE_PATH = "";
+const DEBUG = true;
+
+function log(level: "info" | "warn" | "error", message: string, data?: unknown) {
+  const timestamp = new Date().toISOString();
+  const prefix = `[DataInput ${timestamp}]`;
+  
+  if (level === "error") {
+    console.error(prefix, message, data !== undefined ? data : "");
+  } else if (level === "warn") {
+    console.warn(prefix, message, data !== undefined ? data : "");
+  } else if (DEBUG) {
+    console.log(prefix, message, data !== undefined ? data : "");
+  }
+}
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -30,12 +44,70 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function isValidBase64(str: string): boolean {
+  if (!str || typeof str !== "string") return false;
+  try {
+    const decoded = atob(str);
+    return decoded.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function validateLocalFile(file: unknown): file is LocalFile {
+  if (!file || typeof file !== "object") return false;
+  const f = file as Record<string, unknown>;
+  return (
+    typeof f.name === "string" &&
+    typeof f.data === "string" &&
+    typeof f.savedAt === "string" &&
+    isValidBase64(f.data)
+  );
+}
+
 function getLocalFiles(): LocalFile[] {
   if (typeof window === "undefined") return [];
   try {
     const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
+    if (!stored) {
+      log("info", "No local files in localStorage");
+      return [];
+    }
+    
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) {
+      log("warn", "localStorage data is not an array, clearing");
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      return [];
+    }
+    
+    const validFiles: LocalFile[] = [];
+    const invalidCount = { total: 0 };
+    
+    for (const item of parsed) {
+      if (validateLocalFile(item)) {
+        validFiles.push(item);
+      } else {
+        invalidCount.total++;
+        log("warn", "Invalid local file found", { name: item?.name || "unknown" });
+      }
+    }
+    
+    if (invalidCount.total > 0) {
+      log("warn", `Removed ${invalidCount.total} invalid files from localStorage`);
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(validFiles));
+    }
+    
+    log("info", `Loaded ${validFiles.length} valid local files`);
+    return validFiles;
+  } catch (err) {
+    log("error", "Failed to parse localStorage", err);
+    try {
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      log("info", "Cleared corrupted localStorage");
+    } catch {
+      // ignore
+    }
     return [];
   }
 }
@@ -111,18 +183,31 @@ function deleteLocalFile(name: string): void {
   }
 }
 
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
+function base64ToArrayBuffer(base64: string, fileName?: string): ArrayBuffer {
+  log("info", `Decoding base64 for file: ${fileName || "unknown"}`, { 
+    dataLength: base64?.length || 0 
+  });
+  
+  if (!base64 || typeof base64 !== "string") {
+    log("error", "Invalid base64 data: empty or not a string");
+    throw new Error("파일 데이터가 비어있습니다.");
+  }
+  
   try {
     const binaryString = atob(base64);
     const len = binaryString.length;
+    log("info", `Decoded binary length: ${len} bytes`);
+    
     const bytes = new Uint8Array(len);
     for (let i = 0; i < len; i++) {
       bytes[i] = binaryString.charCodeAt(i);
     }
+    
+    log("info", `Successfully converted to ArrayBuffer: ${bytes.buffer.byteLength} bytes`);
     return bytes.buffer;
   } catch (err) {
-    console.error("Failed to decode base64:", err);
-    throw new Error("저장된 파일 데이터가 손상되었습니다.");
+    log("error", "Failed to decode base64", { error: err, fileName });
+    throw new Error(`저장된 파일 데이터가 손상되었습니다: ${fileName || "unknown"}`);
   }
 }
 
@@ -154,13 +239,22 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
 
   const handleFileUpload = useCallback(
     async (file: File, saveToLocal = true) => {
+      log("info", `Uploading file: ${file.name}`, { 
+        size: file.size, 
+        type: file.type,
+        saveToLocal 
+      });
+      
       setLoading(true);
       setError(null);
       setFileName(file.name);
 
       try {
         const buffer = await file.arrayBuffer();
+        log("info", `Read file buffer: ${buffer.byteLength} bytes`);
+        
         const records = parseExcelFile(buffer);
+        log("info", `Parsed ${records.length} records`);
 
         if (records.length === 0) {
           throw new Error("유효한 거래 데이터를 찾을 수 없습니다.");
@@ -169,13 +263,18 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
         if (saveToLocal) {
           const savedName = saveLocalFile(file.name, buffer);
           if (savedName) {
+            log("info", `Saved to localStorage as: ${savedName}`);
             setFileName(savedName);
+          } else {
+            log("warn", "Failed to save to localStorage (file may be too large)");
           }
           setLocalFiles(getLocalFiles());
         }
 
         onDataLoaded(records);
+        log("info", `Successfully loaded ${records.length} records`);
       } catch (err) {
+        log("error", `Failed to upload file: ${file.name}`, err);
         setError(err instanceof Error ? err.message : "파일 파싱 실패");
         setFileName(null);
       } finally {
@@ -278,21 +377,44 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
 
   const handleLocalFileSelect = useCallback(
     async (file: LocalFile) => {
+      log("info", `Loading local file: ${file.name}`, { 
+        savedAt: file.savedAt,
+        dataLength: file.data?.length || 0 
+      });
+      
       setLoading(true);
       setError(null);
       setFileName(file.name);
 
       try {
-        const buffer = base64ToArrayBuffer(file.data);
+        if (!file.data) {
+          throw new Error("파일 데이터가 없습니다.");
+        }
+        
+        const buffer = base64ToArrayBuffer(file.data, file.name);
+        log("info", `Parsing Excel file: ${file.name}`);
+        
         const records = parseExcelFile(buffer);
+        log("info", `Parsed ${records.length} records from ${file.name}`);
 
         if (records.length === 0) {
           throw new Error("유효한 거래 데이터를 찾을 수 없습니다.");
         }
 
         onDataLoaded(records);
+        log("info", `Successfully loaded ${records.length} records`);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "파일 로드 실패");
+        const errorMessage = err instanceof Error ? err.message : "파일 로드 실패";
+        log("error", `Failed to load local file: ${file.name}`, err);
+        
+        if (errorMessage.includes("손상") || errorMessage.includes("비어있")) {
+          log("warn", `Removing corrupted file: ${file.name}`);
+          deleteLocalFile(file.name);
+          setLocalFiles(getLocalFiles());
+          setError(`${errorMessage} (파일이 자동 삭제되었습니다)`);
+        } else {
+          setError(errorMessage);
+        }
         setFileName(null);
       } finally {
         setLoading(false);
@@ -477,7 +599,30 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
       )}
 
       {error && (
-        <p className="mt-4 text-sm text-red-400">{error}</p>
+        <div className="mt-4 p-3 rounded-md bg-red-500/10 border border-red-500/30">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm text-red-400">{error}</p>
+              <p className="text-xs text-red-400/70 mt-1">
+                브라우저 콘솔(F12)에서 상세 로그를 확인할 수 있습니다.
+              </p>
+            </div>
+          </div>
+          {localFiles.length > 0 && (
+            <button
+              onClick={() => {
+                log("info", "Clearing all local files");
+                localStorage.removeItem(LOCAL_STORAGE_KEY);
+                setLocalFiles([]);
+                setError(null);
+              }}
+              className="mt-2 text-xs text-red-400 hover:text-red-300 underline"
+            >
+              모든 브라우저 저장 파일 삭제
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

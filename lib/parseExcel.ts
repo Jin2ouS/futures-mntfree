@@ -1,6 +1,21 @@
 import * as XLSX from "xlsx";
 import type { TradeRecord } from "./types";
 
+const DEBUG = true;
+
+function log(level: "info" | "warn" | "error", message: string, data?: unknown) {
+  const timestamp = new Date().toISOString();
+  const prefix = `[parseExcel ${timestamp}]`;
+  
+  if (level === "error") {
+    console.error(prefix, message, data !== undefined ? data : "");
+  } else if (level === "warn") {
+    console.warn(prefix, message, data !== undefined ? data : "");
+  } else if (DEBUG) {
+    console.log(prefix, message, data !== undefined ? data : "");
+  }
+}
+
 function parseExcelDate(value: unknown): Date | null {
   if (value === null || value === undefined) return null;
 
@@ -37,16 +52,26 @@ function parseExcelDate(value: unknown): Date | null {
 }
 
 export function parseExcelFile(buffer: ArrayBuffer): TradeRecord[] {
-  const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
-  const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
+  log("info", `Parsing Excel file, buffer size: ${buffer.byteLength} bytes`);
+  
+  try {
+    const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
+    log("info", `Workbook loaded, sheets: ${workbook.SheetNames.join(", ")}`);
+    
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
 
-  const jsonData = XLSX.utils.sheet_to_json(sheet, {
-    header: 1,
-    defval: null,
-  }) as unknown[][];
+    const jsonData = XLSX.utils.sheet_to_json(sheet, {
+      header: 1,
+      defval: null,
+    }) as unknown[][];
 
-  if (jsonData.length < 2) return [];
+    log("info", `Sheet "${sheetName}" has ${jsonData.length} rows`);
+
+    if (jsonData.length < 2) {
+      log("warn", "Sheet has less than 2 rows, returning empty");
+      return [];
+    }
 
   const headerRowIndex = jsonData.findIndex(
     (row) =>
@@ -203,7 +228,12 @@ export function parseExcelFile(buffer: ArrayBuffer): TradeRecord[] {
     records.push(tradeRecord);
   }
 
+  log("info", `Parsed ${records.length} valid trade records`);
   return records;
+  } catch (err) {
+    log("error", "Failed to parse Excel file", err);
+    throw err;
+  }
 }
 
 export function parseGoogleSheetUrl(url: string): { spreadsheetId: string; gid: string } | null {
