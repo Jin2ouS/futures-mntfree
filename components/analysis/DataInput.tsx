@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { Upload, Link, FileSpreadsheet, Loader2, Server, Trash2, AlertTriangle } from "lucide-react";
+import { Upload, Link, FileSpreadsheet, Loader2, Server, Trash2, AlertTriangle, Check, Square, CheckSquare } from "lucide-react";
 import { parseExcelFile, parseGoogleSheetUrl, getGoogleSheetExportUrl } from "@/lib/parseExcel";
+import { uploadFile, listFiles, downloadFile, deleteFile as deleteStorageFile, isSupabaseConfigured, type StorageFile } from "@/lib/supabase";
 import type { TradeRecord } from "@/lib/types";
 
 interface DataInputProps {
@@ -211,48 +212,81 @@ function base64ToArrayBuffer(base64: string, fileName?: string): ArrayBuffer {
   }
 }
 
+function getDisplayName(fileName: string): string {
+  const timestampMatch = fileName.match(/^\d+_(.+)$/);
+  if (timestampMatch) {
+    return timestampMatch[1].replace(/_/g, " ");
+  }
+  return fileName;
+}
+
 export default function DataInput({ onDataLoaded }: DataInputProps) {
   const [mode, setMode] = useState<"upload" | "link" | "server">("upload");
   const [googleUrl, setGoogleUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   
   const [serverFiles, setServerFiles] = useState<ServerFile[]>([]);
+  const [storageFiles, setStorageFiles] = useState<StorageFile[]>([]);
   const [localFiles, setLocalFiles] = useState<LocalFile[]>([]);
   const [serverLoading, setServerLoading] = useState(false);
+  
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [mergeLoading, setMergeLoading] = useState(false);
 
   useEffect(() => {
     setLocalFiles(getLocalFiles());
   }, []);
 
+  const loadServerFiles = useCallback(async () => {
+    setServerLoading(true);
+    
+    try {
+      const [staticFilesRes, supabaseFiles] = await Promise.all([
+        fetch(`${BASE_PATH}/data/files.json`).then((res) => res.json()).catch(() => []),
+        isSupabaseConfigured() ? listFiles() : Promise.resolve([]),
+      ]);
+      
+      setServerFiles(staticFilesRes);
+      setStorageFiles(supabaseFiles);
+      log("info", `Loaded ${staticFilesRes.length} static files, ${supabaseFiles.length} storage files`);
+    } catch (err) {
+      log("error", "Failed to load server files", err);
+      setServerFiles([]);
+      setStorageFiles([]);
+    } finally {
+      setServerLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (mode === "server") {
-      setServerLoading(true);
-      fetch(`${BASE_PATH}/data/files.json`)
-        .then((res) => res.json())
-        .then((data) => setServerFiles(data))
-        .catch(() => setServerFiles([]))
-        .finally(() => setServerLoading(false));
+      loadServerFiles();
+      setSelectedFiles(new Set());
+      setIsMultiSelectMode(false);
     }
-  }, [mode]);
+  }, [mode, loadServerFiles]);
 
   const handleFileUpload = useCallback(
-    async (file: File, saveToLocal = true) => {
+    async (file: File) => {
       log("info", `Uploading file: ${file.name}`, { 
         size: file.size, 
-        type: file.type,
-        saveToLocal 
+        type: file.type
       });
       
       setLoading(true);
       setError(null);
       setFileName(file.name);
+      setUploadProgress("파일 읽는 중...");
 
       try {
         const buffer = await file.arrayBuffer();
         log("info", `Read file buffer: ${buffer.byteLength} bytes`);
         
+        setUploadProgress("데이터 파싱 중...");
         const records = parseExcelFile(buffer);
         log("info", `Parsed ${records.length} records`);
 
@@ -260,7 +294,24 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
           throw new Error("유효한 거래 데이터를 찾을 수 없습니다.");
         }
 
-        if (saveToLocal) {
+        if (isSupabaseConfigured()) {
+          setUploadProgress("서버에 업로드 중...");
+          const result = await uploadFile(file);
+          if (result) {
+            log("info", `Uploaded to storage: ${result.path}`);
+            setUploadProgress("업로드 완료!");
+            await loadServerFiles();
+          } else {
+            log("warn", "Failed to upload to storage, saving locally");
+            setUploadProgress("로컬에 저장 중...");
+            const savedName = saveLocalFile(file.name, buffer);
+            if (savedName) {
+              setFileName(savedName);
+            }
+            setLocalFiles(getLocalFiles());
+          }
+        } else {
+          setUploadProgress("로컬에 저장 중...");
           const savedName = saveLocalFile(file.name, buffer);
           if (savedName) {
             log("info", `Saved to localStorage as: ${savedName}`);
@@ -279,9 +330,10 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
         setFileName(null);
       } finally {
         setLoading(false);
+        setUploadProgress(null);
       }
     },
-    [onDataLoaded]
+    [onDataLoaded, loadServerFiles]
   );
 
   const handleDrop = useCallback(
@@ -375,6 +427,35 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
     [onDataLoaded]
   );
 
+  const handleStorageFileSelect = useCallback(
+    async (file: StorageFile) => {
+      setLoading(true);
+      setError(null);
+      setFileName(getDisplayName(file.name));
+
+      try {
+        const buffer = await downloadFile(file.name);
+        if (!buffer) {
+          throw new Error("파일을 다운로드할 수 없습니다.");
+        }
+
+        const records = parseExcelFile(buffer);
+
+        if (records.length === 0) {
+          throw new Error("유효한 거래 데이터를 찾을 수 없습니다.");
+        }
+
+        onDataLoaded(records);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "파일 로드 실패");
+        setFileName(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [onDataLoaded]
+  );
+
   const handleLocalFileSelect = useCallback(
     async (file: LocalFile) => {
       log("info", `Loading local file: ${file.name}`, { 
@@ -428,6 +509,145 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
     deleteLocalFile(name);
     setLocalFiles(getLocalFiles());
   }, []);
+
+  const handleDeleteStorageFile = useCallback(async (name: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const success = await deleteStorageFile(name);
+    if (success) {
+      await loadServerFiles();
+    } else {
+      setError("파일 삭제에 실패했습니다.");
+    }
+  }, [loadServerFiles]);
+
+  const toggleFileSelection = useCallback((fileId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedFiles(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(fileId)) {
+        newSet.delete(fileId);
+      } else {
+        newSet.add(fileId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const handleMergeAndLoad = useCallback(async () => {
+    if (selectedFiles.size === 0) {
+      setError("선택된 파일이 없습니다.");
+      return;
+    }
+
+    setMergeLoading(true);
+    setError(null);
+    
+    const fileNames: string[] = [];
+    const allRecords: TradeRecord[] = [];
+
+    try {
+      for (const fileId of selectedFiles) {
+        const [type, name] = fileId.split(":", 2);
+        fileNames.push(getDisplayName(name));
+
+        let buffer: ArrayBuffer | null = null;
+
+        if (type === "static") {
+          const response = await fetch(`${BASE_PATH}/data/${encodeURIComponent(name)}`);
+          if (response.ok) {
+            buffer = await response.arrayBuffer();
+          }
+        } else if (type === "storage") {
+          buffer = await downloadFile(name);
+        } else if (type === "local") {
+          const localFile = localFiles.find(f => f.name === name);
+          if (localFile) {
+            buffer = base64ToArrayBuffer(localFile.data, localFile.name);
+          }
+        }
+
+        if (buffer) {
+          const records = parseExcelFile(buffer);
+          allRecords.push(...records);
+          log("info", `Loaded ${records.length} records from ${name}`);
+        } else {
+          log("warn", `Failed to load file: ${name}`);
+        }
+      }
+
+      if (allRecords.length === 0) {
+        throw new Error("선택한 파일들에서 유효한 거래 데이터를 찾을 수 없습니다.");
+      }
+
+      allRecords.sort((a, b) => {
+        const timeA = a.진입시간?.getTime() || 0;
+        const timeB = b.진입시간?.getTime() || 0;
+        return timeA - timeB;
+      });
+
+      setFileName(`${fileNames.length}개 파일 병합`);
+      onDataLoaded(allRecords);
+      log("info", `Merged ${allRecords.length} records from ${fileNames.length} files`);
+      
+      setSelectedFiles(new Set());
+      setIsMultiSelectMode(false);
+    } catch (err) {
+      log("error", "Failed to merge files", err);
+      setError(err instanceof Error ? err.message : "파일 병합 실패");
+    } finally {
+      setMergeLoading(false);
+    }
+  }, [selectedFiles, localFiles, onDataLoaded]);
+
+  const renderFileItem = (
+    type: "static" | "storage" | "local",
+    name: string,
+    displayName: string,
+    size: number | undefined,
+    onSelect: () => void,
+    onDelete?: (e: React.MouseEvent) => void,
+    iconColor: string = "text-green-500"
+  ) => {
+    const fileId = `${type}:${name}`;
+    const isSelected = selectedFiles.has(fileId);
+
+    return (
+      <button
+        key={fileId}
+        onClick={isMultiSelectMode ? (e) => toggleFileSelection(fileId, e) : onSelect}
+        disabled={loading || mergeLoading}
+        className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-left text-sm transition-colors hover:bg-white/10 disabled:opacity-50 ${
+          isSelected ? "bg-blue-500/20 border border-blue-500/50" : 
+          fileName === displayName ? "bg-white/10 border border-blue-500/50" : "bg-white/5"
+        }`}
+      >
+        {isMultiSelectMode && (
+          <span className="flex-shrink-0">
+            {isSelected ? (
+              <CheckSquare className="h-4 w-4 text-blue-400" />
+            ) : (
+              <Square className="h-4 w-4 text-[var(--muted)]" />
+            )}
+          </span>
+        )}
+        <FileSpreadsheet className={`h-4 w-4 ${iconColor} flex-shrink-0`} />
+        <span className="flex-1 truncate text-[var(--foreground)]">{displayName}</span>
+        {size !== undefined && size > 0 && (
+          <span className="text-xs text-[var(--muted)]">{formatFileSize(size)}</span>
+        )}
+        {onDelete && !isMultiSelectMode && (
+          <button
+            onClick={onDelete}
+            className="p-1 rounded hover:bg-red-500/20 text-[var(--muted)] hover:text-red-400 transition-colors"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        )}
+      </button>
+    );
+  };
+
+  const totalFiles = serverFiles.length + storageFiles.length + localFiles.length;
 
   return (
     <div className="rounded-lg border border-[var(--border)] bg-white/[0.02] p-6">
@@ -489,7 +709,9 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
               <Upload className="h-10 w-10 mx-auto text-[var(--muted)]" />
             )}
             <p className="mt-4 text-sm text-[var(--muted)]">
-              {fileName ? (
+              {uploadProgress ? (
+                <span className="text-blue-400">{uploadProgress}</span>
+              ) : fileName ? (
                 <span className="text-[var(--foreground)]">{fileName}</span>
               ) : (
                 <>
@@ -501,7 +723,9 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
             </p>
           </label>
           <p className="mt-3 text-xs text-[var(--muted)]">
-            업로드 된 파일은 서버에 저장되어, &quot;서버파일 선택&quot; 메뉴에서 확인할 수 있습니다.
+            {isSupabaseConfigured() 
+              ? "업로드 된 파일은 서버에 저장되어, \"서버파일 선택\" 메뉴에서 확인할 수 있습니다."
+              : "Supabase가 설정되지 않아, 파일이 브라우저에만 저장됩니다."}
           </p>
         </div>
       ) : mode === "link" ? (
@@ -539,23 +763,71 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
             </div>
           ) : (
             <>
+              {totalFiles > 1 && (
+                <div className="flex items-center justify-between mb-2">
+                  <button
+                    onClick={() => {
+                      setIsMultiSelectMode(!isMultiSelectMode);
+                      if (isMultiSelectMode) {
+                        setSelectedFiles(new Set());
+                      }
+                    }}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                      isMultiSelectMode 
+                        ? "bg-blue-500/20 text-blue-400 border border-blue-500/50" 
+                        : "bg-white/5 text-[var(--muted)] hover:text-[var(--foreground)]"
+                    }`}
+                  >
+                    {isMultiSelectMode ? <CheckSquare className="h-3 w-3" /> : <Square className="h-3 w-3" />}
+                    {isMultiSelectMode ? "선택 취소" : "여러 파일 선택"}
+                  </button>
+                  
+                  {isMultiSelectMode && selectedFiles.size > 0 && (
+                    <button
+                      onClick={handleMergeAndLoad}
+                      disabled={mergeLoading}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50"
+                    >
+                      {mergeLoading ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Check className="h-3 w-3" />
+                      )}
+                      {selectedFiles.size}개 파일 불러오기
+                    </button>
+                  )}
+                </div>
+              )}
+
               {serverFiles.length > 0 && (
                 <div>
-                  <p className="text-xs text-[var(--muted)] mb-2">서버 파일</p>
+                  <p className="text-xs text-[var(--muted)] mb-2">서버 파일 (정적)</p>
+                  <div className="space-y-1 max-h-[150px] overflow-y-auto">
+                    {serverFiles.map((file) => renderFileItem(
+                      "static",
+                      file.name,
+                      file.name,
+                      file.size,
+                      () => handleServerFileSelect(file),
+                      undefined,
+                      "text-green-500"
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {storageFiles.length > 0 && (
+                <div>
+                  <p className="text-xs text-[var(--muted)] mb-2">서버 파일 (업로드)</p>
                   <div className="space-y-1 max-h-[200px] overflow-y-auto">
-                    {serverFiles.map((file) => (
-                      <button
-                        key={file.name}
-                        onClick={() => handleServerFileSelect(file)}
-                        disabled={loading}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-left text-sm transition-colors hover:bg-white/10 disabled:opacity-50 ${
-                          fileName === file.name ? "bg-white/10 border border-blue-500/50" : "bg-white/5"
-                        }`}
-                      >
-                        <FileSpreadsheet className="h-4 w-4 text-green-500 flex-shrink-0" />
-                        <span className="flex-1 truncate text-[var(--foreground)]">{file.name}</span>
-                        <span className="text-xs text-[var(--muted)]">{formatFileSize(file.size)}</span>
-                      </button>
+                    {storageFiles.map((file) => renderFileItem(
+                      "storage",
+                      file.name,
+                      getDisplayName(file.name),
+                      file.size,
+                      () => handleStorageFileSelect(file),
+                      (e) => handleDeleteStorageFile(file.name, e),
+                      "text-emerald-500"
                     ))}
                   </div>
                 </div>
@@ -565,30 +837,20 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
                 <div>
                   <p className="text-xs text-[var(--muted)] mb-2">최근 업로드 (브라우저 저장)</p>
                   <div className="space-y-1 max-h-[150px] overflow-y-auto">
-                    {localFiles.map((file) => (
-                      <button
-                        key={file.name}
-                        onClick={() => handleLocalFileSelect(file)}
-                        disabled={loading}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-left text-sm transition-colors hover:bg-white/10 disabled:opacity-50 ${
-                          fileName === file.name ? "bg-white/10 border border-blue-500/50" : "bg-white/5"
-                        }`}
-                      >
-                        <FileSpreadsheet className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                        <span className="flex-1 truncate text-[var(--foreground)]">{file.name}</span>
-                        <button
-                          onClick={(e) => handleDeleteLocalFile(file.name, e)}
-                          className="p-1 rounded hover:bg-red-500/20 text-[var(--muted)] hover:text-red-400 transition-colors"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </button>
+                    {localFiles.map((file) => renderFileItem(
+                      "local",
+                      file.name,
+                      file.name,
+                      undefined,
+                      () => handleLocalFileSelect(file),
+                      (e) => handleDeleteLocalFile(file.name, e),
+                      "text-blue-500"
                     ))}
                   </div>
                 </div>
               )}
 
-              {serverFiles.length === 0 && localFiles.length === 0 && (
+              {totalFiles === 0 && (
                 <div className="text-center py-8 text-[var(--muted)] text-sm">
                   서버에 파일이 없습니다. 파일을 업로드하세요.
                 </div>
