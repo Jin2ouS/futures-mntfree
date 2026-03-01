@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 import {
   format,
   startOfMonth,
@@ -23,6 +23,9 @@ interface ProfitCalendarProps {
 
 const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
 
+type SortKey = "통화" | "종류" | "거래량" | "진입시간" | "청산시간" | "실수익";
+type SortOrder = "asc" | "desc";
+
 export default function ProfitCalendar({ data, trades }: ProfitCalendarProps) {
   const dataMonths = useMemo(() => {
     const months = new Set<string>();
@@ -43,6 +46,8 @@ export default function ProfitCalendar({ data, trades }: ProfitCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(initialMonth);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedWeekIdx, setSelectedWeekIdx] = useState<number | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>("청산시간");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
 
   const profitMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -143,6 +148,75 @@ export default function ProfitCalendar({ data, trades }: ProfitCalendarProps) {
     }
     return null;
   }, [selectedDate, selectedWeekIdx, currentMonth]);
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortOrder("asc");
+    }
+  };
+
+  const sortedTrades = useMemo(() => {
+    const sorted = [...filteredTrades];
+    sorted.sort((a, b) => {
+      let aVal: string | number | Date | null;
+      let bVal: string | number | Date | null;
+
+      switch (sortKey) {
+        case "통화":
+          aVal = a.통화;
+          bVal = b.통화;
+          break;
+        case "종류":
+          aVal = a.종류;
+          bVal = b.종류;
+          break;
+        case "거래량":
+          aVal = a.거래량;
+          bVal = b.거래량;
+          break;
+        case "진입시간":
+          aVal = a.진입시간;
+          bVal = b.진입시간;
+          break;
+        case "청산시간":
+          aVal = a.청산시간;
+          bVal = b.청산시간;
+          break;
+        case "실수익":
+          aVal = a.실수익;
+          bVal = b.실수익;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aVal === null && bVal === null) return 0;
+      if (aVal === null) return sortOrder === "asc" ? 1 : -1;
+      if (bVal === null) return sortOrder === "asc" ? -1 : 1;
+
+      if (aVal instanceof Date && bVal instanceof Date) {
+        return sortOrder === "asc"
+          ? aVal.getTime() - bVal.getTime()
+          : bVal.getTime() - aVal.getTime();
+      }
+
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
+      }
+
+      if (typeof aVal === "string" && typeof bVal === "string") {
+        return sortOrder === "asc"
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+
+      return 0;
+    });
+    return sorted;
+  }, [filteredTrades, sortKey, sortOrder]);
 
   const formatProfit = (value: number) => {
     const absValue = Math.abs(value);
@@ -293,16 +367,30 @@ export default function ProfitCalendar({ data, trades }: ProfitCalendarProps) {
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="text-left">
-                  <th className="py-2 px-3 text-[var(--muted)] font-medium border-b border-[var(--border)]">통화</th>
-                  <th className="py-2 px-3 text-[var(--muted)] font-medium border-b border-[var(--border)]">종류</th>
-                  <th className="py-2 px-3 text-[var(--muted)] font-medium border-b border-[var(--border)] text-right">거래량</th>
-                  <th className="py-2 px-3 text-[var(--muted)] font-medium border-b border-[var(--border)]">진입시간</th>
-                  <th className="py-2 px-3 text-[var(--muted)] font-medium border-b border-[var(--border)]">청산시간</th>
-                  <th className="py-2 px-3 text-[var(--muted)] font-medium border-b border-[var(--border)] text-right">실수익</th>
+                  {(["통화", "종류", "거래량", "진입시간", "청산시간", "실수익"] as SortKey[]).map((key) => (
+                    <th
+                      key={key}
+                      onClick={() => handleSort(key)}
+                      className={`py-2 px-3 font-medium border-b border-[var(--border)] cursor-pointer hover:bg-white/5 transition-colors select-none ${
+                        key === "거래량" || key === "실수익" ? "text-right" : ""
+                      } ${sortKey === key ? "text-[var(--foreground)]" : "text-[var(--muted)]"}`}
+                    >
+                      <div className={`flex items-center gap-1 ${key === "거래량" || key === "실수익" ? "justify-end" : ""}`}>
+                        <span>{key}</span>
+                        {sortKey === key && (
+                          sortOrder === "asc" ? (
+                            <ChevronUp className="h-3 w-3" />
+                          ) : (
+                            <ChevronDown className="h-3 w-3" />
+                          )
+                        )}
+                      </div>
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {filteredTrades.map((trade, idx) => (
+                {sortedTrades.map((trade, idx) => (
                   <tr key={idx} className="hover:bg-white/5 transition-colors">
                     <td className="py-2 px-3 border-b border-[var(--border)] text-[var(--foreground)]">{trade.통화}</td>
                     <td className="py-2 px-3 border-b border-[var(--border)] text-[var(--foreground)]">{trade.종류}</td>
