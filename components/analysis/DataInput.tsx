@@ -59,19 +59,42 @@ function generateUniqueFileName(name: string, existingFiles: LocalFile[]): strin
   return `${baseName}_${timestamp}${extension}`;
 }
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  const chunks: string[] = [];
+  
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    chunks.push(String.fromCharCode.apply(null, Array.from(chunk)));
+  }
+  
+  return btoa(chunks.join(""));
+}
+
 function saveLocalFile(name: string, data: ArrayBuffer): string | null {
   try {
-    const files = getLocalFiles();
-    const base64 = btoa(
-      new Uint8Array(data).reduce((data, byte) => data + String.fromCharCode(byte), "")
-    );
+    const base64 = arrayBufferToBase64(data);
+    const estimatedSize = base64.length * 2;
     
+    if (estimatedSize > 4 * 1024 * 1024) {
+      console.warn("File too large for localStorage, skipping save");
+      return null;
+    }
+    
+    const files = getLocalFiles();
     const uniqueName = generateUniqueFileName(name, files);
     const newFile: LocalFile = { name: uniqueName, data: base64, savedAt: new Date().toISOString() };
     
     files.unshift(newFile);
     
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(files.slice(0, 10)));
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(files.slice(0, 10)));
+    } catch (quotaError) {
+      const reducedFiles = files.slice(0, 5);
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reducedFiles));
+    }
+    
     return uniqueName;
   } catch (err) {
     console.error("Failed to save file to localStorage:", err);
@@ -89,12 +112,18 @@ function deleteLocalFile(name: string): void {
 }
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
+  try {
+    const binaryString = atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+  } catch (err) {
+    console.error("Failed to decode base64:", err);
+    throw new Error("저장된 파일 데이터가 손상되었습니다.");
   }
-  return bytes.buffer;
 }
 
 export default function DataInput({ onDataLoaded }: DataInputProps) {
