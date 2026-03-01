@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "eslint",
     "prepare-data": "node scripts/prepare-data-files.js",
-    "deploy": "npm run build && gh-pages -d out -t true"
+    "deploy": "npm run build && gh-pages -d out"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",
