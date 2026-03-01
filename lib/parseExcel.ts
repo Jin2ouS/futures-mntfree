@@ -84,7 +84,22 @@ export function parseExcelFile(buffer: ArrayBuffer): TradeRecord[] {
       )
   );
 
-  if (headerRowIndex === -1) return [];
+  if (headerRowIndex === -1) {
+    const sampleHeaders = jsonData.slice(0, 5).map((row, idx) => {
+      const cells = (row || []).slice(0, 10).map(c => String(c || "").trim()).filter(Boolean);
+      return `  행 ${idx + 1}: ${cells.join(", ") || "(빈 행)"}`;
+    }).join("\n");
+    
+    log("warn", "Header row not found", { sampleHeaders });
+    
+    throw new Error(
+      `엑셀 파일의 컬럼 헤더를 인식할 수 없습니다.\n\n` +
+      `지원하는 형식:\n` +
+      `• MT5 형식: 시간, 포지션, 통화, 종류, 거래량, 가격, S/L, T/P, 커미션, 스왑, 수익\n` +
+      `• 일반 형식: 진입시간, 청산시간, 포지션, 통화, 종류, 거래량, 전입가격, 청산가격, 커미션, 스왑, 수익\n\n` +
+      `파일 상단 5행의 내용:\n${sampleHeaders}`
+    );
+  }
 
   const rawHeaders = jsonData[headerRowIndex] as (string | null)[];
   const dataRows = jsonData.slice(headerRowIndex + 1);
@@ -106,8 +121,52 @@ export function parseExcelFile(buffer: ArrayBuffer): TradeRecord[] {
     headerIndices["가격"]?.length === 2 &&
     !headers.includes("진입시간");
 
+  const foundHeaders = headers.filter(h => h).join(", ");
+  log("info", `Found headers: ${foundHeaders}`);
+  log("info", `Format detected: ${isMT5Format ? "MT5" : "일반"}`);
+
+  const missingColumns: string[] = [];
+  
+  if (isMT5Format) {
+    const requiredMT5 = ["시간", "가격", "포지션", "수익"];
+    for (const col of requiredMT5) {
+      if (!headerIndices[col] || headerIndices[col].length === 0) {
+        missingColumns.push(col);
+      }
+    }
+    if (headerIndices["시간"]?.length !== 2) {
+      missingColumns.push("시간 (2개 필요: 진입/청산)");
+    }
+    if (headerIndices["가격"]?.length !== 2) {
+      missingColumns.push("가격 (2개 필요: 진입/청산)");
+    }
+  } else {
+    const requiredGeneral = ["진입시간", "청산시간", "포지션", "수익"];
+    for (const col of requiredGeneral) {
+      if (!headerIndices[col] || headerIndices[col].length === 0) {
+        missingColumns.push(col);
+      }
+    }
+  }
+
+  if (missingColumns.length > 0) {
+    const formatName = isMT5Format ? "MT5" : "일반";
+    log("warn", `Missing required columns for ${formatName} format`, { missingColumns, foundHeaders });
+    
+    throw new Error(
+      `필수 컬럼이 누락되었습니다.\n\n` +
+      `누락된 컬럼: ${missingColumns.join(", ")}\n\n` +
+      `파일에서 찾은 컬럼:\n${foundHeaders || "(컬럼 없음)"}\n\n` +
+      `${isMT5Format ? "MT5" : "일반"} 형식 필수 컬럼:\n` +
+      (isMT5Format 
+        ? `• 시간 (2개), 가격 (2개), 포지션, 수익`
+        : `• 진입시간, 청산시간, 포지션, 수익`)
+    );
+  }
+
   const has실수익Column = headers.includes("실수익");
   const records: TradeRecord[] = [];
+  let skippedRows = 0;
 
   for (const row of dataRows) {
     if (!row || row.every((cell) => cell === null || cell === "")) continue;
@@ -203,7 +262,10 @@ export function parseExcelFile(buffer: ArrayBuffer): TradeRecord[] {
       }
     }
 
-    if (실수익 === 0 && 수익 === 0) continue;
+    if (실수익 === 0 && 수익 === 0) {
+      skippedRows++;
+      continue;
+    }
 
     const tradeRecord: TradeRecord = {
       진입시간,
@@ -228,7 +290,21 @@ export function parseExcelFile(buffer: ArrayBuffer): TradeRecord[] {
     records.push(tradeRecord);
   }
 
-  log("info", `Parsed ${records.length} valid trade records`);
+  log("info", `Parsed ${records.length} valid trade records, skipped ${skippedRows} rows (수익=0)`);
+  
+  if (records.length === 0) {
+    const totalDataRows = dataRows.filter(row => row && !row.every(cell => cell === null || cell === "")).length;
+    
+    throw new Error(
+      `유효한 거래 데이터를 찾을 수 없습니다.\n\n` +
+      `총 데이터 행: ${totalDataRows}개\n` +
+      `건너뛴 행 (수익=0): ${skippedRows}개\n\n` +
+      `확인사항:\n` +
+      `• "수익" 컬럼에 0이 아닌 값이 있는지 확인하세요\n` +
+      `• 날짜 형식이 올바른지 확인하세요 (예: 2024.01.01 12:00:00)`
+    );
+  }
+  
   return records;
   } catch (err) {
     log("error", "Failed to parse Excel file", err);

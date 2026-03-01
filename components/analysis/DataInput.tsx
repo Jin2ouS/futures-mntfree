@@ -871,8 +871,8 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
           <div className="flex items-start gap-2">
             <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm text-red-400">{error}</p>
-              <p className="text-xs text-red-400/70 mt-1">
+              <pre className="text-sm text-red-400 whitespace-pre-wrap font-sans">{error}</pre>
+              <p className="text-xs text-red-400/70 mt-2">
                 브라우저 콘솔(F12)에서 상세 로그를 확인할 수 있습니다.
               </p>
             </div>
