@@ -988,7 +988,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
               {serverFiles.length > 0 && (
                 <div>
                   <p className="text-xs text-[var(--muted)] mb-2">서버 파일 (정적)</p>
-                  <div className="space-y-1 max-h-[150px] overflow-y-auto">
+                  <div className="space-y-1 max-h-[300px] overflow-y-auto">
                     {serverFiles.map((file) => renderFileItem(
                       "static",
                       file.name,
@@ -1005,7 +1005,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
               {storageFiles.length > 0 && (
                 <div>
                   <p className="text-xs text-[var(--muted)] mb-2">서버 파일 (업로드)</p>
-                  <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                  <div className="space-y-1 max-h-[400px] overflow-y-auto">
                     {storageFiles.map((file) => renderFileItem(
                       "storage",
                       file.name,
@@ -1022,7 +1022,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
               {localFiles.length > 0 && (
                 <div>
                   <p className="text-xs text-[var(--muted)] mb-2">최근 업로드 (브라우저 저장)</p>
-                  <div className="space-y-1 max-h-[150px] overflow-y-auto">
+                  <div className="space-y-1 max-h-[300px] overflow-y-auto">
                     {localFiles.map((file) => renderFileItem(
                       "local",
                       file.name,
