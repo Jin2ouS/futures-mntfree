@@ -44,24 +44,8 @@ export default function ProfitChart({ data, type, showLabels, showBySymbol = fal
     setMounted(true);
   }, []);
 
-  if (data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-[400px] text-[var(--muted)]">
-        데이터가 없습니다.
-      </div>
-    );
-  }
-
-  if (!mounted) {
-    return (
-      <div className="flex items-center justify-center h-[400px] text-[var(--muted)]">
-        <Loader2 className="h-6 w-6 animate-spin" />
-      </div>
-    );
-  }
-
   const allSymbols = useMemo(() => {
-    if (!showBySymbol || type !== "daily") return [];
+    if (!showBySymbol || type !== "daily" || data.length === 0) return [];
     const symbols = new Set<string>();
     (data as DailyProfit[]).forEach((item) => {
       if (item.bySymbol) {
@@ -72,6 +56,7 @@ export default function ProfitChart({ data, type, showLabels, showBySymbol = fal
   }, [data, showBySymbol, type]);
 
   const chartData = useMemo(() => {
+    if (data.length === 0) return [];
     return data.map((item) => {
       const base = {
         ...item,
@@ -104,6 +89,22 @@ export default function ProfitChart({ data, type, showLabels, showBySymbol = fal
   const getSymbolColor = (symbol: string) => {
     return SYMBOL_COLORS[symbol] || DEFAULT_SYMBOL_COLOR;
   };
+
+  if (data.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[400px] text-[var(--muted)]">
+        데이터가 없습니다.
+      </div>
+    );
+  }
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center h-[400px] text-[var(--muted)]">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="h-[400px] w-full">

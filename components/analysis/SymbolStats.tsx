@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   PieChart,
   Pie,
@@ -46,14 +46,13 @@ export default function SymbolStats({ data }: SymbolStatsProps) {
     setMounted(true);
   }, []);
 
-  if (data.length === 0) return null;
-
-  const getCorrectedVolume = (symbol: string, volume: number) => {
+  const getCorrectedVolume = useCallback((symbol: string, volume: number) => {
     if (!normalizeVolume) return volume;
     return volume * (VOLUME_CORRECTION[symbol] || 1);
-  };
+  }, [normalizeVolume]);
 
   const chartData = useMemo(() => {
+    if (data.length === 0) return [];
     let profitColorIndex = 0;
     return data.map((item) => {
       let value: number;
@@ -88,20 +87,28 @@ export default function SymbolStats({ data }: SymbolStatsProps) {
         isNegative,
       };
     });
-  }, [data, chartDataType, normalizeVolume]);
+  }, [data, chartDataType, getCorrectedVolume]);
 
-  const totalTrades = data.reduce((sum, item) => sum + item.tradeCount, 0);
-  const totalProfit = data.reduce((sum, item) => sum + item.totalProfit, 0);
+  const totalTrades = useMemo(() => {
+    return data.reduce((sum, item) => sum + item.tradeCount, 0);
+  }, [data]);
+
+  const totalProfit = useMemo(() => {
+    return data.reduce((sum, item) => sum + item.totalProfit, 0);
+  }, [data]);
+
   const totalVolume = useMemo(() => {
     return data.reduce((sum, item) => sum + getCorrectedVolume(item.symbol, item.totalVolume), 0);
-  }, [data, normalizeVolume]);
+  }, [data, getCorrectedVolume]);
 
-  const formatValue = (value: number) => {
+  const formatValue = useCallback((value: number) => {
     const absValue = Math.abs(value);
     const formatted = absValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     if (value >= 0) return `$${formatted}`;
     return `-$${formatted}`;
-  };
+  }, []);
+
+  if (data.length === 0) return null;
 
   return (
     <div className="rounded-lg border border-[var(--border)] bg-white/[0.02] p-4">
