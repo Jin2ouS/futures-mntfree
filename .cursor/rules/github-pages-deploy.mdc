@@ -1,0 +1,43 @@
+---
+description: GitHub Pages 배포 설정 (커스텀 도메인 futures.mntfree.com)
+alwaysApply: true
+---
+
+# GitHub Pages 배포 규칙
+
+이 프로젝트는 **커스텀 도메인** `futures.mntfree.com`을 사용합니다.
+
+## 중요: basePath 설정 금지
+
+커스텀 도메인 사용 시 `next.config.ts`에서 다음 설정을 **사용하면 안 됨**:
+
+```typescript
+// ❌ 사용 금지 - 화면 깨짐 발생
+basePath: "/futures-mntfree"
+assetPrefix: "/futures-mntfree/"
+```
+
+```typescript
+// ✅ 올바른 설정
+const nextConfig: NextConfig = {
+  output: "export",
+  images: { unoptimized: true },
+  trailingSlash: true,
+};
+```
+
+## CNAME 파일 필수
+
+`public/CNAME` 파일이 반드시 존재해야 함:
+
+```
+futures.mntfree.com
+```
+
+## 배포 명령어
+
+```bash
+npm run deploy
+```
+
+이 명령어는 `npm run build && gh-pages -d out`을 실행합니다.
