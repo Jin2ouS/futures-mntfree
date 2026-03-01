@@ -29,6 +29,27 @@ export interface StorageFile {
   updated_at: string;
 }
 
+function encodeOriginalName(name: string): string {
+  try {
+    return btoa(unescape(encodeURIComponent(name)))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+  } catch {
+    return "file";
+  }
+}
+
+function decodeOriginalName(encoded: string): string {
+  try {
+    const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    return decodeURIComponent(escape(atob(padded)));
+  } catch {
+    return encoded;
+  }
+}
+
 export async function uploadFile(file: File): Promise<{ path: string; originalName: string } | null> {
   const client = getSupabaseClient();
   if (!client) return null;
@@ -36,17 +57,14 @@ export async function uploadFile(file: File): Promise<{ path: string; originalNa
   try {
     const timestamp = Date.now();
     const ext = file.name.split('.').pop() || 'xlsx';
-    const randomId = Math.random().toString(36).substring(2, 8);
-    const filePath = `${timestamp}_${randomId}.${ext}`;
+    const encodedName = encodeOriginalName(file.name);
+    const filePath = `${timestamp}_${encodedName}.${ext}`;
 
     const { data, error } = await client.storage
       .from(STORAGE_BUCKET)
       .upload(filePath, file, {
         cacheControl: "3600",
         upsert: false,
-        metadata: {
-          originalName: file.name,
-        },
       });
 
     if (error) {
@@ -59,6 +77,17 @@ export async function uploadFile(file: File): Promise<{ path: string; originalNa
     console.error("Upload failed:", err);
     return null;
   }
+}
+
+function extractOriginalName(fileName: string): string {
+  const match = fileName.match(/^\d+_(.+)\.(xlsx?|xls)$/i);
+  if (match) {
+    const decoded = decodeOriginalName(match[1]);
+    if (decoded !== match[1] && decoded.length > 0) {
+      return decoded;
+    }
+  }
+  return fileName;
 }
 
 export async function listFiles(): Promise<StorageFile[]> {
@@ -80,7 +109,7 @@ export async function listFiles(): Promise<StorageFile[]> {
       .filter((file) => file.name.endsWith(".xlsx") || file.name.endsWith(".xls"))
       .map((file) => ({
         name: file.name,
-        originalName: file.metadata?.originalName || file.name,
+        originalName: extractOriginalName(file.name),
         size: file.metadata?.size || 0,
         created_at: file.created_at || "",
         updated_at: file.updated_at || "",
