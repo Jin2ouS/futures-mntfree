@@ -247,7 +247,7 @@ export function parseExcelFile(buffer: ArrayBuffer, fileName?: string): TradeRec
       통화 = String(record["통화"] || "");
       종류 = String(record["종류"] || "");
       거래량 = Number(record["거래량"]) || 0;
-      진입가격 = Number(record["진입가격"] ?? record["전입가격"]) || 0;
+      진입가격 = Number(record["진입가격"]) || 0;
 
       const slVal = record["S / L"] ?? record["S/L"];
       const tpVal = record["T / P"] ?? record["T/P"];
