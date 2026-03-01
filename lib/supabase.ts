@@ -34,8 +34,12 @@ export async function uploadFile(file: File): Promise<{ path: string } | null> {
 
   try {
     const timestamp = Date.now();
-    const safeName = file.name.replace(/[^a-zA-Z0-9가-힣._-]/g, "_");
-    const filePath = `${timestamp}_${safeName}`;
+    const ext = file.name.split('.').pop() || 'xlsx';
+    const safeName = file.name
+      .replace(/[^a-zA-Z0-9._-]/g, "_")
+      .replace(/_+/g, "_")
+      .substring(0, 50);
+    const filePath = `${timestamp}_${safeName}.${ext}`;
 
     const { data, error } = await client.storage
       .from(STORAGE_BUCKET)
