@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   PieChart,
   Pie,
@@ -9,7 +9,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { BarChart2, Table as TableIcon } from "lucide-react";
+import { BarChart2, Table as TableIcon, Loader2 } from "lucide-react";
 import type { SymbolStats as SymbolStatsType } from "@/lib/types";
 
 interface SymbolStatsProps {
@@ -40,6 +40,11 @@ export default function SymbolStats({ data }: SymbolStatsProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("chart");
   const [chartDataType, setChartDataType] = useState<ChartDataType>("trades");
   const [normalizeVolume, setNormalizeVolume] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (data.length === 0) return null;
 
@@ -179,6 +184,11 @@ export default function SymbolStats({ data }: SymbolStatsProps) {
       {viewMode === "chart" ? (
         <div className="flex flex-col">
           <div className="h-[480px]">
+            {!mounted ? (
+              <div className="flex items-center justify-center h-full text-[var(--muted)]">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart margin={{ top: 40, right: 80, bottom: 40, left: 80 }}>
               <Pie
@@ -243,6 +253,7 @@ export default function SymbolStats({ data }: SymbolStatsProps) {
               <Legend wrapperStyle={{ paddingTop: "20px" }} />
               </PieChart>
             </ResponsiveContainer>
+            )}
           </div>
           <div className="text-center text-sm text-[var(--muted)] py-3">
             {chartDataType === "trades"

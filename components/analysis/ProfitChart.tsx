@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   ComposedChart,
   Bar,
@@ -14,6 +14,7 @@ import {
   Cell,
   LabelList,
 } from "recharts";
+import { Loader2 } from "lucide-react";
 import type { DailyProfit, WeeklyProfit, MonthlyProfit } from "@/lib/types";
 
 type ChartData = DailyProfit[] | WeeklyProfit[] | MonthlyProfit[];
@@ -37,10 +38,24 @@ interface ProfitChartProps {
 }
 
 export default function ProfitChart({ data, type, showLabels, showBySymbol = false }: ProfitChartProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-[400px] text-[var(--muted)]">
         데이터가 없습니다.
+      </div>
+    );
+  }
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center h-[400px] text-[var(--muted)]">
+        <Loader2 className="h-6 w-6 animate-spin" />
       </div>
     );
   }
