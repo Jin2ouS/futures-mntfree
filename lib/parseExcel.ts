@@ -51,12 +51,19 @@ function parseExcelDate(value: unknown): Date | null {
   return null;
 }
 
-export function parseExcelFile(buffer: ArrayBuffer): TradeRecord[] {
-  log("info", `Parsing Excel file, buffer size: ${buffer.byteLength} bytes`);
+export interface ParseResult {
+  records: TradeRecord[];
+  error?: string;
+  fileName?: string;
+}
+
+export function parseExcelFile(buffer: ArrayBuffer, fileName?: string): TradeRecord[] {
+  const fileLabel = fileName ? `[${fileName}] ` : "";
+  log("info", `${fileLabel}Parsing Excel file, buffer size: ${buffer.byteLength} bytes`);
   
   try {
     const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
-    log("info", `Workbook loaded, sheets: ${workbook.SheetNames.join(", ")}`);
+    log("info", `${fileLabel}Workbook loaded, sheets: ${workbook.SheetNames.join(", ")}`);
     
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
@@ -66,11 +73,11 @@ export function parseExcelFile(buffer: ArrayBuffer): TradeRecord[] {
       defval: null,
     }) as unknown[][];
 
-    log("info", `Sheet "${sheetName}" has ${jsonData.length} rows`);
+    log("info", `${fileLabel}Sheet "${sheetName}" has ${jsonData.length} rows`);
 
     if (jsonData.length < 2) {
-      log("warn", "Sheet has less than 2 rows, returning empty");
-      return [];
+      log("warn", `${fileLabel}Sheet has less than 2 rows`);
+      throw new Error(`${fileLabel}시트에 데이터가 부족합니다 (2행 미만).`);
     }
 
   const headerRowIndex = jsonData.findIndex(
@@ -90,10 +97,10 @@ export function parseExcelFile(buffer: ArrayBuffer): TradeRecord[] {
       return `  행 ${idx + 1}: ${cells.join(", ") || "(빈 행)"}`;
     }).join("\n");
     
-    log("warn", "Header row not found", { sampleHeaders });
+    log("warn", `${fileLabel}Header row not found`, { sampleHeaders });
     
     throw new Error(
-      `엑셀 파일의 컬럼 헤더를 인식할 수 없습니다.\n\n` +
+      `${fileLabel}컬럼 헤더를 인식할 수 없습니다.\n\n` +
       `지원하는 형식:\n` +
       `• MT5 형식: 시간, 포지션, 통화, 종류, 거래량, 가격, S/L, T/P, 커미션, 스왑, 수익\n` +
       `• 일반 형식: 진입시간, 청산시간, 포지션, 통화, 종류, 거래량, 전입가격, 청산가격, 커미션, 스왑, 수익\n\n` +
@@ -151,10 +158,10 @@ export function parseExcelFile(buffer: ArrayBuffer): TradeRecord[] {
 
   if (missingColumns.length > 0) {
     const formatName = isMT5Format ? "MT5" : "일반";
-    log("warn", `Missing required columns for ${formatName} format`, { missingColumns, foundHeaders });
+    log("warn", `${fileLabel}Missing required columns for ${formatName} format`, { missingColumns, foundHeaders });
     
     throw new Error(
-      `필수 컬럼이 누락되었습니다.\n\n` +
+      `${fileLabel}필수 컬럼이 누락되었습니다.\n\n` +
       `누락된 컬럼: ${missingColumns.join(", ")}\n\n` +
       `파일에서 찾은 컬럼:\n${foundHeaders || "(컬럼 없음)"}\n\n` +
       `${isMT5Format ? "MT5" : "일반"} 형식 필수 컬럼:\n` +
@@ -290,13 +297,13 @@ export function parseExcelFile(buffer: ArrayBuffer): TradeRecord[] {
     records.push(tradeRecord);
   }
 
-  log("info", `Parsed ${records.length} valid trade records, skipped ${skippedRows} rows (수익=0)`);
+  log("info", `${fileLabel}Parsed ${records.length} valid trade records, skipped ${skippedRows} rows (수익=0)`);
   
   if (records.length === 0) {
     const totalDataRows = dataRows.filter(row => row && !row.every(cell => cell === null || cell === "")).length;
     
     throw new Error(
-      `유효한 거래 데이터를 찾을 수 없습니다.\n\n` +
+      `${fileLabel}유효한 거래 데이터를 찾을 수 없습니다.\n\n` +
       `총 데이터 행: ${totalDataRows}개\n` +
       `건너뛴 행 (수익=0): ${skippedRows}개\n\n` +
       `확인사항:\n` +
@@ -307,7 +314,7 @@ export function parseExcelFile(buffer: ArrayBuffer): TradeRecord[] {
   
   return records;
   } catch (err) {
-    log("error", "Failed to parse Excel file", err);
+    log("error", `${fileLabel}Failed to parse Excel file`, err);
     throw err;
   }
 }
@@ -333,4 +340,48 @@ export function parseGoogleSheetUrl(url: string): { spreadsheetId: string; gid: 
 
 export function getGoogleSheetExportUrl(spreadsheetId: string, gid: string): string {
   return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=xlsx&gid=${gid}`;
+}
+
+export interface ExcelPreviewData {
+  sheetName: string;
+  headers: string[];
+  rows: string[][];
+  totalRows: number;
+}
+
+export function getExcelPreview(buffer: ArrayBuffer, maxRows: number = 10): ExcelPreviewData {
+  const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  
+  const jsonData = XLSX.utils.sheet_to_json(sheet, {
+    header: 1,
+    defval: "",
+  }) as unknown[][];
+  
+  const headerRowIndex = jsonData.findIndex(
+    (row) =>
+      row &&
+      row.some(
+        (cell) =>
+          String(cell).includes("진입시간") ||
+          String(cell).includes("청산시간") ||
+          (String(cell) === "시간" && row.some((c) => String(c) === "포지션"))
+      )
+  );
+  
+  const startIndex = headerRowIndex >= 0 ? headerRowIndex : 0;
+  const headers = (jsonData[startIndex] || []).map(cell => String(cell || "").trim());
+  const dataRows = jsonData.slice(startIndex + 1);
+  
+  const previewRows = dataRows.slice(0, maxRows).map(row => 
+    (row || []).map(cell => String(cell ?? ""))
+  );
+  
+  return {
+    sheetName,
+    headers,
+    rows: previewRows,
+    totalRows: dataRows.length,
+  };
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { Upload, Link, FileSpreadsheet, Loader2, Server, Trash2, AlertTriangle, Check, Square, CheckSquare } from "lucide-react";
-import { parseExcelFile, parseGoogleSheetUrl, getGoogleSheetExportUrl } from "@/lib/parseExcel";
+import { Upload, Link, FileSpreadsheet, Loader2, Server, Trash2, AlertTriangle, Check, Square, CheckSquare, Download, Eye, X } from "lucide-react";
+import { parseExcelFile, parseGoogleSheetUrl, getGoogleSheetExportUrl, getExcelPreview, type ExcelPreviewData } from "@/lib/parseExcel";
 import { uploadFile, listFiles, downloadFile, deleteFile as deleteStorageFile, isSupabaseConfigured, type StorageFile } from "@/lib/supabase";
 import type { TradeRecord } from "@/lib/types";
 
@@ -236,6 +236,12 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [mergeLoading, setMergeLoading] = useState(false);
+  
+  const [previewData, setPreviewData] = useState<ExcelPreviewData | null>(null);
+  const [previewFileName, setPreviewFileName] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  
+  const [fileErrors, setFileErrors] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     setLocalFiles(getLocalFiles());
@@ -533,6 +539,89 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
     });
   }, []);
 
+  const handleDownloadFile = useCallback(async (
+    type: "static" | "storage" | "local",
+    name: string,
+    displayName: string,
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation();
+    
+    try {
+      let buffer: ArrayBuffer | null = null;
+      
+      if (type === "static") {
+        const response = await fetch(`${BASE_PATH}/data/${encodeURIComponent(name)}`);
+        if (response.ok) {
+          buffer = await response.arrayBuffer();
+        }
+      } else if (type === "storage") {
+        buffer = await downloadFile(name);
+      } else if (type === "local") {
+        const localFile = localFiles.find(f => f.name === name);
+        if (localFile) {
+          buffer = base64ToArrayBuffer(localFile.data, localFile.name);
+        }
+      }
+      
+      if (buffer) {
+        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = displayName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      log("error", `Failed to download file: ${name}`, err);
+      setError("파일 다운로드에 실패했습니다.");
+    }
+  }, [localFiles]);
+
+  const handlePreviewFile = useCallback(async (
+    type: "static" | "storage" | "local",
+    name: string,
+    displayName: string,
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation();
+    setPreviewLoading(true);
+    setPreviewFileName(displayName);
+    
+    try {
+      let buffer: ArrayBuffer | null = null;
+      
+      if (type === "static") {
+        const response = await fetch(`${BASE_PATH}/data/${encodeURIComponent(name)}`);
+        if (response.ok) {
+          buffer = await response.arrayBuffer();
+        }
+      } else if (type === "storage") {
+        buffer = await downloadFile(name);
+      } else if (type === "local") {
+        const localFile = localFiles.find(f => f.name === name);
+        if (localFile) {
+          buffer = base64ToArrayBuffer(localFile.data, localFile.name);
+        }
+      }
+      
+      if (buffer) {
+        const preview = getExcelPreview(buffer, 20);
+        setPreviewData(preview);
+      }
+    } catch (err) {
+      log("error", `Failed to preview file: ${name}`, err);
+      setError("파일 미리보기에 실패했습니다.");
+      setPreviewData(null);
+      setPreviewFileName(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [localFiles]);
+
   const handleMergeAndLoad = useCallback(async () => {
     if (selectedFiles.size === 0) {
       setError("선택된 파일이 없습니다.");
@@ -541,48 +630,72 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
 
     setMergeLoading(true);
     setError(null);
+    setFileErrors(new Map());
     
     const fileNames: string[] = [];
     const allRecords: TradeRecord[] = [];
+    const errors = new Map<string, string>();
+    let successCount = 0;
 
     try {
       for (const fileId of selectedFiles) {
         const [type, name] = fileId.split(":", 2);
         
+        let displayName = name;
         if (type === "storage") {
           const storageFile = storageFiles.find(f => f.name === name);
-          fileNames.push(storageFile?.originalName || name);
-        } else {
-          fileNames.push(name);
+          displayName = storageFile?.originalName || name;
         }
+        fileNames.push(displayName);
 
         let buffer: ArrayBuffer | null = null;
 
-        if (type === "static") {
-          const response = await fetch(`${BASE_PATH}/data/${encodeURIComponent(name)}`);
-          if (response.ok) {
-            buffer = await response.arrayBuffer();
+        try {
+          if (type === "static") {
+            const response = await fetch(`${BASE_PATH}/data/${encodeURIComponent(name)}`);
+            if (response.ok) {
+              buffer = await response.arrayBuffer();
+            } else {
+              throw new Error("파일을 가져올 수 없습니다.");
+            }
+          } else if (type === "storage") {
+            buffer = await downloadFile(name);
+            if (!buffer) {
+              throw new Error("파일을 다운로드할 수 없습니다.");
+            }
+          } else if (type === "local") {
+            const localFile = localFiles.find(f => f.name === name);
+            if (localFile) {
+              buffer = base64ToArrayBuffer(localFile.data, localFile.name);
+            } else {
+              throw new Error("로컬 파일을 찾을 수 없습니다.");
+            }
           }
-        } else if (type === "storage") {
-          buffer = await downloadFile(name);
-        } else if (type === "local") {
-          const localFile = localFiles.find(f => f.name === name);
-          if (localFile) {
-            buffer = base64ToArrayBuffer(localFile.data, localFile.name);
-          }
-        }
 
-        if (buffer) {
-          const records = parseExcelFile(buffer);
-          allRecords.push(...records);
-          log("info", `Loaded ${records.length} records from ${name}`);
-        } else {
-          log("warn", `Failed to load file: ${name}`);
+          if (buffer) {
+            const records = parseExcelFile(buffer, displayName);
+            allRecords.push(...records);
+            successCount++;
+            log("info", `Loaded ${records.length} records from ${displayName}`);
+          }
+        } catch (fileErr) {
+          const errorMessage = fileErr instanceof Error ? fileErr.message : "알 수 없는 오류";
+          errors.set(displayName, errorMessage);
+          log("warn", `Failed to parse file: ${displayName}`, fileErr);
         }
       }
 
+      setFileErrors(errors);
+
       if (allRecords.length === 0) {
-        throw new Error("선택한 파일들에서 유효한 거래 데이터를 찾을 수 없습니다.");
+        if (errors.size > 0) {
+          const errorSummary = Array.from(errors.entries())
+            .map(([file, err]) => `• ${file}: ${err.split("\n")[0]}`)
+            .join("\n");
+          throw new Error(`선택한 파일들에서 유효한 거래 데이터를 찾을 수 없습니다.\n\n파일별 오류:\n${errorSummary}`);
+        } else {
+          throw new Error("선택한 파일들에서 유효한 거래 데이터를 찾을 수 없습니다.");
+        }
       }
 
       allRecords.sort((a, b) => {
@@ -591,19 +704,25 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
         return timeA - timeB;
       });
 
-      setFileName(`${fileNames.length}개 파일 병합`);
-      onDataLoaded(allRecords);
-      log("info", `Merged ${allRecords.length} records from ${fileNames.length} files`);
+      const resultMessage = errors.size > 0
+        ? `${successCount}개 파일 병합 (${errors.size}개 실패)`
+        : `${fileNames.length}개 파일 병합`;
       
-      setSelectedFiles(new Set());
-      setIsMultiSelectMode(false);
+      setFileName(resultMessage);
+      onDataLoaded(allRecords);
+      log("info", `Merged ${allRecords.length} records from ${successCount} files (${errors.size} failed)`);
+      
+      if (errors.size === 0) {
+        setSelectedFiles(new Set());
+        setIsMultiSelectMode(false);
+      }
     } catch (err) {
       log("error", "Failed to merge files", err);
       setError(err instanceof Error ? err.message : "파일 병합 실패");
     } finally {
       setMergeLoading(false);
     }
-  }, [selectedFiles, localFiles, onDataLoaded]);
+  }, [selectedFiles, storageFiles, localFiles, onDataLoaded]);
 
   const renderFileItem = (
     type: "static" | "storage" | "local",
@@ -616,40 +735,71 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
   ) => {
     const fileId = `${type}:${name}`;
     const isSelected = selectedFiles.has(fileId);
+    const hasError = fileErrors.has(displayName);
 
     return (
-      <button
-        key={fileId}
-        onClick={isMultiSelectMode ? (e) => toggleFileSelection(fileId, e) : onSelect}
-        disabled={loading || mergeLoading}
-        className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-left text-sm transition-colors hover:bg-white/10 disabled:opacity-50 ${
-          isSelected ? "bg-blue-500/20 border border-blue-500/50" : 
-          fileName === displayName ? "bg-white/10 border border-blue-500/50" : "bg-white/5"
-        }`}
-      >
-        {isMultiSelectMode && (
-          <span className="flex-shrink-0">
-            {isSelected ? (
-              <CheckSquare className="h-4 w-4 text-blue-400" />
-            ) : (
-              <Square className="h-4 w-4 text-[var(--muted)]" />
-            )}
-          </span>
+      <div key={fileId} className="space-y-1">
+        <button
+          onClick={isMultiSelectMode ? (e) => toggleFileSelection(fileId, e) : onSelect}
+          disabled={loading || mergeLoading}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-left text-sm transition-colors hover:bg-white/10 disabled:opacity-50 ${
+            hasError ? "bg-red-500/10 border border-red-500/30" :
+            isSelected ? "bg-blue-500/20 border border-blue-500/50" : 
+            fileName === displayName ? "bg-white/10 border border-blue-500/50" : "bg-white/5"
+          }`}
+        >
+          {isMultiSelectMode && (
+            <span className="flex-shrink-0">
+              {isSelected ? (
+                <CheckSquare className="h-4 w-4 text-blue-400" />
+              ) : (
+                <Square className="h-4 w-4 text-[var(--muted)]" />
+              )}
+            </span>
+          )}
+          {hasError ? (
+            <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0" />
+          ) : (
+            <FileSpreadsheet className={`h-4 w-4 ${iconColor} flex-shrink-0`} />
+          )}
+          <span className={`flex-1 truncate ${hasError ? "text-red-400" : "text-[var(--foreground)]"}`}>{displayName}</span>
+          {size !== undefined && size > 0 && (
+            <span className="text-xs text-[var(--muted)]">{formatFileSize(size)}</span>
+          )}
+          {!isMultiSelectMode && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={(e) => handlePreviewFile(type, name, displayName, e)}
+                className="p-1 rounded hover:bg-blue-500/20 text-[var(--muted)] hover:text-blue-400 transition-colors"
+                title="미리보기"
+              >
+                <Eye className="h-3 w-3" />
+              </button>
+              <button
+                onClick={(e) => handleDownloadFile(type, name, displayName, e)}
+                className="p-1 rounded hover:bg-green-500/20 text-[var(--muted)] hover:text-green-400 transition-colors"
+                title="다운로드"
+              >
+                <Download className="h-3 w-3" />
+              </button>
+              {onDelete && (
+                <button
+                  onClick={onDelete}
+                  className="p-1 rounded hover:bg-red-500/20 text-[var(--muted)] hover:text-red-400 transition-colors"
+                  title="삭제"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          )}
+        </button>
+        {hasError && (
+          <div className="ml-6 px-2 py-1 text-xs text-red-400 bg-red-500/5 rounded">
+            {fileErrors.get(displayName)?.split("\n")[0]}
+          </div>
         )}
-        <FileSpreadsheet className={`h-4 w-4 ${iconColor} flex-shrink-0`} />
-        <span className="flex-1 truncate text-[var(--foreground)]">{displayName}</span>
-        {size !== undefined && size > 0 && (
-          <span className="text-xs text-[var(--muted)]">{formatFileSize(size)}</span>
-        )}
-        {onDelete && !isMultiSelectMode && (
-          <button
-            onClick={onDelete}
-            className="p-1 rounded hover:bg-red-500/20 text-[var(--muted)] hover:text-red-400 transition-colors"
-          >
-            <Trash2 className="h-3 w-3" />
-          </button>
-        )}
-      </button>
+      </div>
     );
   };
 
@@ -890,6 +1040,78 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
               모든 브라우저 저장 파일 삭제
             </button>
           )}
+        </div>
+      )}
+
+      {(previewData || previewLoading) && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--background)] border border-[var(--border)] rounded-lg max-w-4xl w-full max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="h-5 w-5 text-green-500" />
+                <h3 className="font-medium text-[var(--foreground)]">{previewFileName}</h3>
+                {previewData && (
+                  <span className="text-xs text-[var(--muted)]">
+                    (시트: {previewData.sheetName}, 총 {previewData.totalRows}행)
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setPreviewData(null);
+                  setPreviewFileName(null);
+                }}
+                className="p-1 rounded hover:bg-white/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-auto p-4">
+              {previewLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 text-[var(--muted)] animate-spin" />
+                </div>
+              ) : previewData ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-white/5">
+                        {previewData.headers.map((header, idx) => (
+                          <th
+                            key={idx}
+                            className="px-3 py-2 text-left font-medium text-[var(--foreground)] border border-[var(--border)] whitespace-nowrap"
+                          >
+                            {header || `(열 ${idx + 1})`}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewData.rows.map((row, rowIdx) => (
+                        <tr key={rowIdx} className="hover:bg-white/5">
+                          {previewData.headers.map((_, colIdx) => (
+                            <td
+                              key={colIdx}
+                              className="px-3 py-1.5 text-[var(--muted)] border border-[var(--border)] whitespace-nowrap max-w-[200px] truncate"
+                              title={row[colIdx] || ""}
+                            >
+                              {row[colIdx] || ""}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {previewData.totalRows > previewData.rows.length && (
+                    <p className="text-xs text-[var(--muted)] mt-2 text-center">
+                      ... 외 {previewData.totalRows - previewData.rows.length}행 더 있음
+                    </p>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          </div>
         </div>
       )}
     </div>
