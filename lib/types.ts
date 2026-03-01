@@ -4,7 +4,7 @@ export interface TradeRecord {
   통화: string;
   종류: string;
   거래량: number;
-  전입가격: number;
+  진입가격: number;
   "S / L": number | null;
   "T / P": number | null;
   청산시간: Date | null;

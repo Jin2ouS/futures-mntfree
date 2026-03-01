@@ -103,7 +103,7 @@ export function parseExcelFile(buffer: ArrayBuffer, fileName?: string): TradeRec
       `${fileLabel}컬럼 헤더를 인식할 수 없습니다.\n\n` +
       `지원하는 형식:\n` +
       `• MT5 형식: 시간, 포지션, 통화, 종류, 거래량, 가격, S/L, T/P, 커미션, 스왑, 수익\n` +
-      `• 일반 형식: 진입시간, 청산시간, 포지션, 통화, 종류, 거래량, 전입가격, 청산가격, 커미션, 스왑, 수익\n\n` +
+      `• 일반 형식: 진입시간, 청산시간, 포지션, 통화, 종류, 거래량, 진입가격, 청산가격, 커미션, 스왑, 수익\n\n` +
       `파일 상단 5행의 내용:\n${sampleHeaders}`
     );
   }
@@ -180,7 +180,7 @@ export function parseExcelFile(buffer: ArrayBuffer, fileName?: string): TradeRec
 
     let 진입시간: Date | null = null;
     let 청산시간: Date | null = null;
-    let 전입가격 = 0;
+    let 진입가격 = 0;
     let 청산가격 = 0;
     let 포지션 = "";
     let 통화 = "";
@@ -202,7 +202,7 @@ export function parseExcelFile(buffer: ArrayBuffer, fileName?: string): TradeRec
 
       진입시간 = parseExcelDate(row[시간Indices[0]]);
       청산시간 = parseExcelDate(row[시간Indices[1]]);
-      전입가격 = Number(row[가격Indices[0]]) || 0;
+      진입가격 = Number(row[가격Indices[0]]) || 0;
       청산가격 = Number(row[가격Indices[1]]) || 0;
 
       const getVal = (name: string) => {
@@ -247,7 +247,7 @@ export function parseExcelFile(buffer: ArrayBuffer, fileName?: string): TradeRec
       통화 = String(record["통화"] || "");
       종류 = String(record["종류"] || "");
       거래량 = Number(record["거래량"]) || 0;
-      전입가격 = Number(record["전입가격"]) || 0;
+      진입가격 = Number(record["진입가격"] ?? record["전입가격"]) || 0;
 
       const slVal = record["S / L"] ?? record["S/L"];
       const tpVal = record["T / P"] ?? record["T/P"];
@@ -280,7 +280,7 @@ export function parseExcelFile(buffer: ArrayBuffer, fileName?: string): TradeRec
       통화,
       종류,
       거래량,
-      전입가격,
+      진입가격,
       "S / L": SL,
       "T / P": TP,
       청산시간,
