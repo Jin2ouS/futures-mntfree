@@ -19,7 +19,7 @@ function getSupabaseClient(): SupabaseClient | null {
   return supabase;
 }
 
-export const STORAGE_BUCKET = "trade-files";
+export const STORAGE_BUCKET = "futures-mntfree-files";
 
 export interface StorageFile {
   name: string;
