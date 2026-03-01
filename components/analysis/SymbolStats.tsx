@@ -33,6 +33,51 @@ const VOLUME_CORRECTION: Record<string, number> = {
   "XAUUSD.b": 10,
 };
 
+const SYMBOL_PREFIX_LENGTH = 6;
+
+function getSymbolPrefix(symbol: string): string {
+  return symbol.slice(0, SYMBOL_PREFIX_LENGTH);
+}
+
+function groupBySymbolPrefix(data: SymbolStatsType[]): SymbolStatsType[] {
+  const grouped = new Map<string, SymbolStatsType>();
+
+  for (const item of data) {
+    const prefix = getSymbolPrefix(item.symbol);
+    const existing = grouped.get(prefix);
+
+    if (existing) {
+      const totalWins = existing.winCount + item.winCount;
+      const totalLosses = existing.lossCount + item.lossCount;
+      const totalTrades = totalWins + totalLosses;
+      
+      const existingTotalWinAmount = existing.avgWin * existing.winCount;
+      const itemTotalWinAmount = item.avgWin * item.winCount;
+      const newAvgWin = totalWins > 0 ? (existingTotalWinAmount + itemTotalWinAmount) / totalWins : 0;
+      
+      const existingTotalLossAmount = existing.avgLoss * existing.lossCount;
+      const itemTotalLossAmount = item.avgLoss * item.lossCount;
+      const newAvgLoss = totalLosses > 0 ? (existingTotalLossAmount + itemTotalLossAmount) / totalLosses : 0;
+
+      grouped.set(prefix, {
+        symbol: prefix,
+        tradeCount: existing.tradeCount + item.tradeCount,
+        totalProfit: existing.totalProfit + item.totalProfit,
+        totalVolume: existing.totalVolume + item.totalVolume,
+        winCount: totalWins,
+        lossCount: totalLosses,
+        winRate: totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0,
+        avgWin: newAvgWin,
+        avgLoss: newAvgLoss,
+      });
+    } else {
+      grouped.set(prefix, { ...item, symbol: prefix });
+    }
+  }
+
+  return Array.from(grouped.values()).sort((a, b) => b.tradeCount - a.tradeCount);
+}
+
 type ViewMode = "chart" | "table";
 type ChartDataType = "trades" | "profit" | "volume";
 
@@ -40,21 +85,36 @@ export default function SymbolStats({ data }: SymbolStatsProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("chart");
   const [chartDataType, setChartDataType] = useState<ChartDataType>("trades");
   const [normalizeVolume, setNormalizeVolume] = useState(true);
+  const [groupSimilarSymbols, setGroupSimilarSymbols] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  const processedData = useMemo(() => {
+    if (!groupSimilarSymbols) return data;
+    return groupBySymbolPrefix(data);
+  }, [data, groupSimilarSymbols]);
+
   const getCorrectedVolume = useCallback((symbol: string, volume: number) => {
     if (!normalizeVolume) return volume;
+    if (groupSimilarSymbols) {
+      const prefix = getSymbolPrefix(symbol);
+      for (const [key, value] of Object.entries(VOLUME_CORRECTION)) {
+        if (getSymbolPrefix(key) === prefix) {
+          return volume * value;
+        }
+      }
+      return volume;
+    }
     return volume * (VOLUME_CORRECTION[symbol] || 1);
-  }, [normalizeVolume]);
+  }, [normalizeVolume, groupSimilarSymbols]);
 
   const chartData = useMemo(() => {
-    if (data.length === 0) return [];
+    if (processedData.length === 0) return [];
     let profitColorIndex = 0;
-    return data.map((item) => {
+    return processedData.map((item) => {
       let value: number;
       let originalValue: number;
       let fill: string;
@@ -87,19 +147,19 @@ export default function SymbolStats({ data }: SymbolStatsProps) {
         isNegative,
       };
     });
-  }, [data, chartDataType, getCorrectedVolume]);
+  }, [processedData, chartDataType, getCorrectedVolume]);
 
   const totalTrades = useMemo(() => {
-    return data.reduce((sum, item) => sum + item.tradeCount, 0);
-  }, [data]);
+    return processedData.reduce((sum, item) => sum + item.tradeCount, 0);
+  }, [processedData]);
 
   const totalProfit = useMemo(() => {
-    return data.reduce((sum, item) => sum + item.totalProfit, 0);
-  }, [data]);
+    return processedData.reduce((sum, item) => sum + item.totalProfit, 0);
+  }, [processedData]);
 
   const totalVolume = useMemo(() => {
-    return data.reduce((sum, item) => sum + getCorrectedVolume(item.symbol, item.totalVolume), 0);
-  }, [data, getCorrectedVolume]);
+    return processedData.reduce((sum, item) => sum + getCorrectedVolume(item.symbol, item.totalVolume), 0);
+  }, [processedData, getCorrectedVolume]);
 
   const formatValue = useCallback((value: number) => {
     const absValue = Math.abs(value);
@@ -161,6 +221,15 @@ export default function SymbolStats({ data }: SymbolStatsProps) {
               )}
             </>
           )}
+          <label className="flex items-center gap-2 cursor-pointer text-xs">
+            <input
+              type="checkbox"
+              checked={groupSimilarSymbols}
+              onChange={(e) => setGroupSimilarSymbols(e.target.checked)}
+              className="w-3.5 h-3.5 rounded border-[var(--border)] bg-white/5 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
+            />
+            <span className="text-[var(--muted)]">유사 종목 합치기</span>
+          </label>
         </div>
         <div className="flex rounded-md overflow-hidden border border-[var(--border)]">
           <button
@@ -299,7 +368,7 @@ export default function SymbolStats({ data }: SymbolStatsProps) {
               </tr>
             </thead>
             <tbody>
-              {data.map((item, index) => (
+              {processedData.map((item, index) => (
                 <tr
                   key={item.symbol}
                   className="border-b border-[var(--border)]/50 hover:bg-white/[0.02]"
@@ -343,7 +412,7 @@ export default function SymbolStats({ data }: SymbolStatsProps) {
                 <td className="py-2 px-3">합계</td>
                 <td className="text-right py-2 px-3">{totalTrades}건</td>
                 <td className="text-right py-2 px-3">
-                  {data.reduce((sum, item) => sum + item.totalVolume, 0).toFixed(2)}
+                  {processedData.reduce((sum, item) => sum + item.totalVolume, 0).toFixed(2)}
                 </td>
                 <td
                   className={`text-right py-2 px-3 ${
