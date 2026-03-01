@@ -23,29 +23,30 @@ export const STORAGE_BUCKET = "futures-mntfree-files";
 
 export interface StorageFile {
   name: string;
+  originalName: string;
   size: number;
   created_at: string;
   updated_at: string;
 }
 
-export async function uploadFile(file: File): Promise<{ path: string } | null> {
+export async function uploadFile(file: File): Promise<{ path: string; originalName: string } | null> {
   const client = getSupabaseClient();
   if (!client) return null;
 
   try {
     const timestamp = Date.now();
     const ext = file.name.split('.').pop() || 'xlsx';
-    const safeName = file.name
-      .replace(/[^a-zA-Z0-9._-]/g, "_")
-      .replace(/_+/g, "_")
-      .substring(0, 50);
-    const filePath = `${timestamp}_${safeName}.${ext}`;
+    const randomId = Math.random().toString(36).substring(2, 8);
+    const filePath = `${timestamp}_${randomId}.${ext}`;
 
     const { data, error } = await client.storage
       .from(STORAGE_BUCKET)
       .upload(filePath, file, {
         cacheControl: "3600",
         upsert: false,
+        metadata: {
+          originalName: file.name,
+        },
       });
 
     if (error) {
@@ -53,7 +54,7 @@ export async function uploadFile(file: File): Promise<{ path: string } | null> {
       return null;
     }
 
-    return { path: data.path };
+    return { path: data.path, originalName: file.name };
   } catch (err) {
     console.error("Upload failed:", err);
     return null;
@@ -79,6 +80,7 @@ export async function listFiles(): Promise<StorageFile[]> {
       .filter((file) => file.name.endsWith(".xlsx") || file.name.endsWith(".xls"))
       .map((file) => ({
         name: file.name,
+        originalName: file.metadata?.originalName || file.name,
         size: file.metadata?.size || 0,
         created_at: file.created_at || "",
         updated_at: file.updated_at || "",

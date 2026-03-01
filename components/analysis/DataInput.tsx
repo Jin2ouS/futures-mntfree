@@ -431,7 +431,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
     async (file: StorageFile) => {
       setLoading(true);
       setError(null);
-      setFileName(getDisplayName(file.name));
+      setFileName(file.originalName);
 
       try {
         const buffer = await downloadFile(file.name);
@@ -548,7 +548,13 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
     try {
       for (const fileId of selectedFiles) {
         const [type, name] = fileId.split(":", 2);
-        fileNames.push(getDisplayName(name));
+        
+        if (type === "storage") {
+          const storageFile = storageFiles.find(f => f.name === name);
+          fileNames.push(storageFile?.originalName || name);
+        } else {
+          fileNames.push(name);
+        }
 
         let buffer: ArrayBuffer | null = null;
 
@@ -823,7 +829,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
                     {storageFiles.map((file) => renderFileItem(
                       "storage",
                       file.name,
-                      getDisplayName(file.name),
+                      file.originalName,
                       file.size,
                       () => handleStorageFileSelect(file),
                       (e) => handleDeleteStorageFile(file.name, e),
