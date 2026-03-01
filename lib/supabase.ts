@@ -128,5 +128,7 @@ export async function deleteFile(fileName: string): Promise<boolean> {
 }
 
 export function isSupabaseConfigured(): boolean {
-  return Boolean(supabaseUrl && supabaseAnonKey);
+  // Supabase Storage 임시 비활성화 - 설정 완료 후 아래 주석 해제
+  // return Boolean(supabaseUrl && supabaseAnonKey);
+  return false;
 }
