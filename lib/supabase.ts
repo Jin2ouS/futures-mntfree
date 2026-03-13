@@ -5,7 +5,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
 let supabase: SupabaseClient | null = null;
 
-function getSupabaseClient(): SupabaseClient | null {
+export function getSupabaseClient(): SupabaseClient | null {
   if (supabase) return supabase;
   
   if (!supabaseUrl || !supabaseAnonKey) {
@@ -50,15 +50,17 @@ function decodeOriginalName(encoded: string): string {
   }
 }
 
-export async function uploadFile(file: File): Promise<{ path: string; originalName: string } | null> {
+const DATA_PREFIX = "data";
+
+export async function uploadFile(file: File, userId: string): Promise<{ path: string; originalName: string } | null> {
   const client = getSupabaseClient();
-  if (!client) return null;
+  if (!client || !userId) return null;
 
   try {
     const timestamp = Date.now();
     const ext = file.name.split('.').pop() || 'xlsx';
     const encodedName = encodeOriginalName(file.name);
-    const filePath = `${timestamp}_${encodedName}.${ext}`;
+    const filePath = `${DATA_PREFIX}/${userId}/${timestamp}_${encodedName}.${ext}`;
 
     const { data, error } = await client.storage
       .from(STORAGE_BUCKET)
@@ -90,12 +92,13 @@ function extractOriginalName(fileName: string): string {
   return fileName;
 }
 
-export async function listFiles(): Promise<StorageFile[]> {
+export async function listFiles(userId: string): Promise<StorageFile[]> {
   const client = getSupabaseClient();
-  if (!client) return [];
+  if (!client || !userId) return [];
 
   try {
-    const { data, error } = await client.storage.from(STORAGE_BUCKET).list("", {
+    const folder = `${DATA_PREFIX}/${userId}`;
+    const { data, error } = await client.storage.from(STORAGE_BUCKET).list(folder, {
       limit: 100,
       sortBy: { column: "created_at", order: "desc" },
     });
@@ -106,9 +109,9 @@ export async function listFiles(): Promise<StorageFile[]> {
     }
 
     return (data || [])
-      .filter((file) => file.name.endsWith(".xlsx") || file.name.endsWith(".xls"))
+      .filter((file) => file.name && (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")))
       .map((file) => ({
-        name: file.name,
+        name: `${folder}/${file.name}`,
         originalName: extractOriginalName(file.name),
         size: file.metadata?.size || 0,
         created_at: file.created_at || "",

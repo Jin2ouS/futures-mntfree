@@ -10,6 +10,7 @@
     "start": "next start",
     "lint": "eslint",
     "prepare-data": "node scripts/prepare-data-files.js",
+    "seed-users": "node scripts/seed-users.js",
     "deploy": "npm run build && gh-pages -d out"
   },
   "dependencies": {

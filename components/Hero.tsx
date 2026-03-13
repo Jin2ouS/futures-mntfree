@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export default function Hero() {
+  const { isAuthenticated } = useAuth();
   return (
     <section className="relative min-h-[90vh] flex flex-col items-center justify-center px-6 py-24 overflow-hidden">
       {/* Background: subtle grid + chart line feel */}
@@ -50,12 +52,6 @@ export default function Hero() {
         </p>
         <div className="mt-10 flex flex-wrap gap-4 justify-center">
           <Link
-            href="/analysis"
-            className="inline-flex items-center justify-center rounded-md border border-blue-500/50 bg-blue-500/10 px-5 py-2.5 text-sm font-medium text-blue-400 transition-colors hover:bg-blue-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
-          >
-            Start Analysis
-          </Link>
-          <Link
             href="#system-architecture"
             className="inline-flex items-center justify-center rounded-md border border-[var(--border)] bg-transparent px-5 py-2.5 text-sm font-medium text-[var(--foreground)] transition-colors hover:border-[var(--muted)] hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--muted)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
           >
@@ -67,6 +63,14 @@ export default function Hero() {
           >
             Risk Framework
           </Link>
+          {isAuthenticated && (
+            <Link
+              href="/analysis"
+              className="inline-flex items-center justify-center rounded-md border border-blue-500/50 bg-blue-500/10 px-5 py-2.5 text-sm font-medium text-blue-400 transition-colors hover:bg-blue-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+            >
+              Start Analysis
+            </Link>
+          )}
         </div>
       </div>
     </section>

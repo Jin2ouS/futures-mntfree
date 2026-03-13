@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import DataInput from "@/components/analysis/DataInput";
+import { useAuth } from "@/components/auth/AuthProvider";
 import DateFilter from "@/components/analysis/DateFilter";
 import SummaryCards from "@/components/analysis/SummaryCards";
 import AnalysisTabs from "@/components/analysis/AnalysisTabs";
@@ -20,7 +22,16 @@ import SymbolStats from "@/components/analysis/SymbolStats";
 import { format } from "date-fns";
 
 export default function AnalysisPage() {
+  const router = useRouter();
+  const { user, isAuthenticated, loading, logout } = useAuth();
   const [rawData, setRawData] = useState<TradeRecord[]>([]);
+
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      const returnUrl = encodeURIComponent(typeof window !== "undefined" ? window.location.pathname + (window.location.search || "") : "/analysis/");
+      router.replace(`/login/?returnUrl=${returnUrl}`);
+    }
+  }, [loading, isAuthenticated, router]);
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: null,
     endDate: null,
@@ -61,18 +72,38 @@ export default function AnalysisPage() {
   const monthly = useMemo(() => aggregateMonthly(filteredData), [filteredData]);
   const symbolStats = useMemo(() => aggregateBySymbol(filteredData), [filteredData]);
 
+  if (loading || !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
+        <div className="text-[var(--muted)]">인증 확인 중...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       <header className="border-b border-[var(--border)]">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-4">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="text-sm">Back</span>
-          </Link>
-          <h1 className="text-lg font-semibold">Trade Analysis</h1>
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="flex items-center gap-2 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="text-sm">Back</span>
+            </Link>
+            <h1 className="text-lg font-semibold">Trade Analysis</h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-[var(--muted)]">{user?.username || user?.email}</span>
+            <button
+              type="button"
+              onClick={() => logout().then(() => router.push("/"))}
+              className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
+            >
+              로그아웃
+            </button>
+          </div>
         </div>
       </header>
 

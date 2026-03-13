@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { Upload, Link, FileSpreadsheet, Loader2, Server, Trash2, AlertTriangle, Check, Square, CheckSquare, Download, Eye, X } from "lucide-react";
 import { parseExcelFile, parseGoogleSheetUrl, getGoogleSheetExportUrl, getExcelPreview, type ExcelPreviewData } from "@/lib/parseExcel";
 import { uploadFile, listFiles, downloadFile, deleteFile as deleteStorageFile, isSupabaseConfigured, type StorageFile } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/AuthProvider";
 import type { TradeRecord } from "@/lib/types";
 
 interface DataInputProps {
@@ -222,6 +223,7 @@ function getDisplayName(fileName: string): string {
 }
 
 export default function DataInput({ onDataLoaded }: DataInputProps) {
+  const { user } = useAuth();
   const [mode, setMode] = useState<"upload" | "link" | "server">("upload");
   const [googleUrl, setGoogleUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -250,17 +252,24 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
   }, []);
 
   const loadServerFiles = useCallback(async () => {
+    if (!user) return;
     setServerLoading(true);
     
     try {
-      const [staticFilesRes, supabaseFiles] = await Promise.all([
+      const [allStatic, supabaseFiles] = await Promise.all([
         fetch(`${BASE_PATH}/data/files.json`).then((res) => res.json()).catch(() => []),
-        isSupabaseConfigured() ? listFiles() : Promise.resolve([]),
+        isSupabaseConfigured() && user.id ? listFiles(user.id) : Promise.resolve([]),
       ]);
-      
-      setServerFiles(staticFilesRes);
+      const username = user.username || user.email?.split("@")[0] || "";
+      const staticFiltered = Array.isArray(allStatic)
+        ? allStatic.filter((f: ServerFile) => {
+            const p = f.path ?? f.name;
+            return p.startsWith(`${username}/`);
+          })
+        : [];
+      setServerFiles(staticFiltered);
       setStorageFiles(supabaseFiles);
-      log("info", `Loaded ${staticFilesRes.length} static files, ${supabaseFiles.length} storage files`);
+      log("info", `Loaded ${staticFiltered.length} static files (user: ${username}), ${supabaseFiles.length} storage files`);
     } catch (err) {
       log("error", "Failed to load server files", err);
       setServerFiles([]);
@@ -268,7 +277,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
     } finally {
       setServerLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (mode === "server") {
@@ -302,9 +311,9 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
           throw new Error("유효한 거래 데이터를 찾을 수 없습니다.");
         }
 
-        if (isSupabaseConfigured()) {
+        if (isSupabaseConfigured() && user?.id) {
           setUploadProgress("서버에 업로드 중...");
-          const result = await uploadFile(file);
+          const result = await uploadFile(file, user.id);
           if (result) {
             log("info", `Uploaded to storage: ${result.path}`);
             setUploadProgress("업로드 완료!");
@@ -341,7 +350,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
         setUploadProgress(null);
       }
     },
-    [onDataLoaded, loadServerFiles]
+    [onDataLoaded, loadServerFiles, user]
   );
 
   const handleDrop = useCallback(
