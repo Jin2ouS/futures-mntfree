@@ -50,17 +50,15 @@ function decodeOriginalName(encoded: string): string {
   }
 }
 
-const DATA_PREFIX = "data";
-
-export async function uploadFile(file: File, userId: string): Promise<{ path: string; originalName: string } | null> {
+export async function uploadFile(file: File): Promise<{ path: string; originalName: string } | null> {
   const client = getSupabaseClient();
-  if (!client || !userId) return null;
+  if (!client) return null;
 
   try {
     const timestamp = Date.now();
     const ext = file.name.split('.').pop() || 'xlsx';
     const encodedName = encodeOriginalName(file.name);
-    const filePath = `${DATA_PREFIX}/${userId}/${timestamp}_${encodedName}.${ext}`;
+    const filePath = `${timestamp}_${encodedName}.${ext}`;
 
     const { data, error } = await client.storage
       .from(STORAGE_BUCKET)
@@ -92,13 +90,12 @@ function extractOriginalName(fileName: string): string {
   return fileName;
 }
 
-export async function listFiles(userId: string): Promise<StorageFile[]> {
+export async function listFiles(): Promise<StorageFile[]> {
   const client = getSupabaseClient();
-  if (!client || !userId) return [];
+  if (!client) return [];
 
   try {
-    const folder = `${DATA_PREFIX}/${userId}`;
-    const { data, error } = await client.storage.from(STORAGE_BUCKET).list(folder, {
+    const { data, error } = await client.storage.from(STORAGE_BUCKET).list("", {
       limit: 100,
       sortBy: { column: "created_at", order: "desc" },
     });
@@ -111,7 +108,7 @@ export async function listFiles(userId: string): Promise<StorageFile[]> {
     return (data || [])
       .filter((file) => file.name && (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")))
       .map((file) => ({
-        name: `${folder}/${file.name}`,
+        name: file.name,
         originalName: extractOriginalName(file.name),
         size: file.metadata?.size || 0,
         created_at: file.created_at || "",

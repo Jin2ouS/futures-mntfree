@@ -50,7 +50,7 @@ function LoginForm() {
             <input
               id="userId"
               type="text"
-              placeholder="admin 또는 jin2ous"
+              placeholder="아이디를 입력하세요"
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
               required
