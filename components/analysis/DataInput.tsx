@@ -577,11 +577,6 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
     }
   }, [loadServerFiles]);
 
-  const handleDeleteStaticFile = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setError("내부 파일(정적 파일)은 삭제할 수 없습니다.");
-  }, []);
-
   const handleRenameStorageFile = useCallback(async (currentPath: string, currentDisplayName: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const newName = window.prompt("새 파일 이름 (확장자 포함)", currentDisplayName);
@@ -595,11 +590,6 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
       setError("파일 이름 변경에 실패했습니다.");
     }
   }, [loadServerFiles]);
-
-  const handleRenameStaticFile = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setError("내부 파일(정적 파일)은 이름을 변경할 수 없습니다.");
-  }, []);
 
   const toggleFileSelection = useCallback((fileId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -808,7 +798,8 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
     onSelect: () => void,
     onDelete?: (e: React.MouseEvent) => void,
     onRename?: (e: React.MouseEvent) => void,
-    iconColor: string = "text-green-500"
+    iconColor: string = "text-green-500",
+    options?: { disableDelete?: boolean; disableRename?: boolean }
   ) => {
     const fileId = `${type}:${name}`;
     const isSelected = selectedFiles.has(fileId);
@@ -859,20 +850,22 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
               >
                 <Download className="h-3 w-3" />
               </button>
-              {onRename && (
+              {(onRename || options?.disableRename) && (
                 <button
-                  onClick={onRename}
-                  className="p-1 rounded hover:bg-amber-500/20 text-[var(--muted)] hover:text-amber-400 transition-colors"
-                  title="이름변경"
+                  onClick={options?.disableRename ? undefined : onRename}
+                  disabled={options?.disableRename}
+                  className="p-1 rounded hover:bg-amber-500/20 text-[var(--muted)] hover:text-amber-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                  title={options?.disableRename ? "내부 파일은 이름변경할 수 없습니다" : "이름변경"}
                 >
                   <Pencil className="h-3 w-3" />
                 </button>
               )}
-              {onDelete && (
+              {(onDelete || options?.disableDelete) && (
                 <button
-                  onClick={onDelete}
-                  className="p-1 rounded hover:bg-red-500/20 text-[var(--muted)] hover:text-red-400 transition-colors"
-                  title="삭제"
+                  onClick={options?.disableDelete ? undefined : onDelete}
+                  disabled={options?.disableDelete}
+                  className="p-1 rounded hover:bg-red-500/20 text-[var(--muted)] hover:text-red-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                  title={options?.disableDelete ? "내부 파일은 삭제할 수 없습니다" : "삭제"}
                 >
                   <Trash2 className="h-3 w-3" />
                 </button>
@@ -1079,9 +1072,10 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
                       file.name,
                       file.size,
                       () => handleServerFileSelect(file),
-                      handleDeleteStaticFile,
-                      handleRenameStaticFile,
-                      "text-green-500"
+                      undefined,
+                      undefined,
+                      "text-green-500",
+                      { disableDelete: true, disableRename: true }
                     ))}
                   </div>
                 </div>
