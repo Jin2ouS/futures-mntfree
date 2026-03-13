@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import Header from "@/components/Header";
 
 const ibmPlexSans = IBM_Plex_Sans({
   weight: ["400", "500", "600"],
@@ -23,7 +24,10 @@ export default function RootLayout({
   return (
     <html lang="ko" className="scroll-smooth">
       <body className={`${ibmPlexSans.variable} antialiased`}>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <Header />
+          <main className="pt-14">{children}</main>
+        </AuthProvider>
       </body>
     </html>
   );

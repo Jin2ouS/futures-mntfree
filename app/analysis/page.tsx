@@ -23,7 +23,7 @@ import { format } from "date-fns";
 
 export default function AnalysisPage() {
   const router = useRouter();
-  const { user, isAuthenticated, loading, logout } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const [rawData, setRawData] = useState<TradeRecord[]>([]);
 
   useEffect(() => {
@@ -83,27 +83,15 @@ export default function AnalysisPage() {
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       <header className="border-b border-[var(--border)]">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="text-sm">Back</span>
-            </Link>
-            <h1 className="text-lg font-semibold">Trade Analysis</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-[var(--muted)]">{user?.username || user?.email}</span>
-            <button
-              type="button"
-              onClick={() => logout().then(() => router.push("/"))}
-              className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
-            >
-              로그아웃
-            </button>
-          </div>
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-4">
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="text-sm">Back</span>
+          </Link>
+          <h1 className="text-lg font-semibold">Trade Analysis</h1>
         </div>
       </header>
 
