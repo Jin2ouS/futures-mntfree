@@ -191,13 +191,29 @@ export async function renameFile(
   if (newPath === currentPath) return true;
 
   try {
-    const { error } = await client.storage
-      .from(STORAGE_BUCKET)
-      .move(currentPath, newPath);
-
-    if (error) {
-      console.error("Rename error:", error);
+    // move API가 Object not found 오류를 일으킬 수 있어, download → upload → delete로 구현
+    const buffer = await downloadFile(currentPath);
+    if (!buffer) {
+      console.error("Rename error: Failed to download file");
       return false;
+    }
+
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const file = new File([blob], newDisplayName.trim(), { type: blob.type });
+
+    const uploadResult = await uploadFile(file, username, {
+      displayName: newDisplayName.trim(),
+    });
+    if (!uploadResult) {
+      console.error("Rename error: Failed to upload with new name");
+      return false;
+    }
+
+    const removed = await deleteFile(currentPath);
+    if (!removed) {
+      console.warn("Rename: New file created but old file delete failed", currentPath);
     }
 
     return true;
