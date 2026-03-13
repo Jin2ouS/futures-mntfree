@@ -50,14 +50,25 @@ function decodeOriginalName(encoded: string): string {
   }
 }
 
-export async function uploadFile(file: File, username: string): Promise<{ path: string; originalName: string } | null> {
+export type UploadOptions = {
+  /** 업로드 시 파일 목록에 표시할 이름. 중복 시 년월일시분초가 붙은 이름 전달 */
+  displayName?: string;
+};
+
+export async function uploadFile(
+  file: File,
+  username: string,
+  options?: UploadOptions
+): Promise<{ path: string; originalName: string } | null> {
   const client = getSupabaseClient();
   if (!client || !username) return null;
+
+  const displayName = options?.displayName ?? file.name;
 
   try {
     const timestamp = Date.now();
     const ext = file.name.split('.').pop() || 'xlsx';
-    const encodedName = encodeOriginalName(file.name);
+    const encodedName = encodeOriginalName(displayName);
     const filePath = `${username}/${timestamp}_${encodedName}.${ext}`;
 
     const { data, error } = await client.storage
@@ -72,7 +83,7 @@ export async function uploadFile(file: File, username: string): Promise<{ path: 
       return null;
     }
 
-    return { path: data.path, originalName: file.name };
+    return { path: data.path, originalName: displayName };
   } catch (err) {
     console.error("Upload failed:", err);
     return null;
@@ -158,6 +169,40 @@ export async function deleteFile(fileName: string): Promise<boolean> {
     return true;
   } catch (err) {
     console.error("Delete failed:", err);
+    return false;
+  }
+}
+
+export async function renameFile(
+  currentPath: string,
+  newDisplayName: string
+): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client || !newDisplayName?.trim()) return false;
+
+  const ext = currentPath.split(".").pop() || "xlsx";
+  const username = currentPath.split("/")[0];
+  if (!username) return false;
+
+  const timestamp = Date.now();
+  const encodedName = encodeOriginalName(newDisplayName.trim());
+  const newPath = `${username}/${timestamp}_${encodedName}.${ext}`;
+
+  if (newPath === currentPath) return true;
+
+  try {
+    const { error } = await client.storage
+      .from(STORAGE_BUCKET)
+      .move(currentPath, newPath);
+
+    if (error) {
+      console.error("Rename error:", error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error("Rename failed:", err);
     return false;
   }
 }

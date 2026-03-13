@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { Upload, Link, FileSpreadsheet, Loader2, Server, Trash2, AlertTriangle, Check, Square, CheckSquare, Download, Eye, X } from "lucide-react";
+import { Upload, Link, FileSpreadsheet, Loader2, Server, Trash2, AlertTriangle, Check, Square, CheckSquare, Download, Eye, X, Pencil } from "lucide-react";
 import { parseExcelFile, parseGoogleSheetUrl, getGoogleSheetExportUrl, getExcelPreview, type ExcelPreviewData } from "@/lib/parseExcel";
-import { uploadFile, listFiles, downloadFile, deleteFile as deleteStorageFile, isSupabaseConfigured, type StorageFile } from "@/lib/supabase";
+import { uploadFile, listFiles, downloadFile, deleteFile as deleteStorageFile, renameFile as renameStorageFile, isSupabaseConfigured, type StorageFile } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/AuthProvider";
 import type { TradeRecord } from "@/lib/types";
 
@@ -229,6 +229,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
   const [googleUrl, setGoogleUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   
@@ -297,6 +298,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
       
       setLoading(true);
       setError(null);
+      setInfoMessage(null);
       setFileName(file.name);
       setUploadProgress("파일 읽는 중...");
 
@@ -314,18 +316,50 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
 
         if (USE_SUPABASE_STORAGE && isSupabaseConfigured() && user) {
           const uploadUsername = user.username || user.id;
+
+          // 기존 파일명 중복 체크 (서버 내부 + 외부)
+          const [allStatic, supabaseList] = await Promise.all([
+            fetch(`${BASE_PATH}/data/files.json`).then((r) => r.json()).catch(() => []),
+            listFiles(uploadUsername),
+          ]);
+          const staticFiltered = Array.isArray(allStatic)
+            ? (allStatic as ServerFile[]).filter((f) => (f.path ?? f.name).startsWith(`${uploadUsername}/`))
+            : [];
+          const existingNames = new Set<string>([
+            ...staticFiltered.map((f) => f.name),
+            ...supabaseList.map((f) => f.originalName),
+          ]);
+
+          let displayName = file.name;
+          let wasRenamed = false;
+          if (existingNames.has(file.name)) {
+            const now = new Date();
+            const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+            const lastDot = file.name.lastIndexOf(".");
+            const base = lastDot >= 0 ? file.name.slice(0, lastDot) : file.name;
+            const ext = lastDot >= 0 ? file.name.slice(lastDot) : "";
+            displayName = `${base}_${ts}${ext}`;
+            wasRenamed = true;
+          }
+
           setUploadProgress("서버에 업로드 중...");
-          const result = await uploadFile(file, uploadUsername);
+          const result = await uploadFile(file, uploadUsername, { displayName });
           if (result) {
             log("info", `Uploaded to storage: ${result.path}`);
             setUploadProgress("업로드 완료!");
             await loadServerFiles();
+            if (wasRenamed) {
+              setInfoMessage(`파일명이 기존 파일과 중복되어 "${displayName}"로 저장되었습니다. 서버파일 선택에서 확인하세요.`);
+            }
           } else {
             log("warn", "Failed to upload to storage, saving locally");
             setUploadProgress("로컬에 저장 중...");
             const savedName = saveLocalFile(file.name, buffer);
             if (savedName) {
               setFileName(savedName);
+              if (savedName !== file.name) {
+                setInfoMessage(`파일명이 기존 파일과 중복되어 "${savedName}"로 저장되었습니다.`);
+              }
             }
             setLocalFiles(getLocalFiles());
           }
@@ -335,6 +369,9 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
           if (savedName) {
             log("info", `Saved to localStorage as: ${savedName}`);
             setFileName(savedName);
+            if (savedName !== file.name) {
+              setInfoMessage(`파일명이 기존 파일과 중복되어 "${savedName}"로 저장되었습니다.`);
+            }
           } else {
             log("warn", "Failed to save to localStorage (file may be too large)");
           }
@@ -539,6 +576,30 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
       setError("파일 삭제에 실패했습니다.");
     }
   }, [loadServerFiles]);
+
+  const handleDeleteStaticFile = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setError("내부 파일(정적 파일)은 삭제할 수 없습니다.");
+  }, []);
+
+  const handleRenameStorageFile = useCallback(async (currentPath: string, currentDisplayName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newName = window.prompt("새 파일 이름 (확장자 포함)", currentDisplayName);
+    if (newName == null || newName.trim() === "") return;
+    if (newName === currentDisplayName) return;
+
+    const success = await renameStorageFile(currentPath, newName.trim());
+    if (success) {
+      await loadServerFiles();
+    } else {
+      setError("파일 이름 변경에 실패했습니다.");
+    }
+  }, [loadServerFiles]);
+
+  const handleRenameStaticFile = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setError("내부 파일(정적 파일)은 이름을 변경할 수 없습니다.");
+  }, []);
 
   const toggleFileSelection = useCallback((fileId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -746,6 +807,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
     size: number | undefined,
     onSelect: () => void,
     onDelete?: (e: React.MouseEvent) => void,
+    onRename?: (e: React.MouseEvent) => void,
     iconColor: string = "text-green-500"
   ) => {
     const fileId = `${type}:${name}`;
@@ -797,6 +859,15 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
               >
                 <Download className="h-3 w-3" />
               </button>
+              {onRename && (
+                <button
+                  onClick={onRename}
+                  className="p-1 rounded hover:bg-amber-500/20 text-[var(--muted)] hover:text-amber-400 transition-colors"
+                  title="이름변경"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              )}
               {onDelete && (
                 <button
                   onClick={onDelete}
@@ -1008,7 +1079,8 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
                       file.name,
                       file.size,
                       () => handleServerFileSelect(file),
-                      undefined,
+                      handleDeleteStaticFile,
+                      handleRenameStaticFile,
                       "text-green-500"
                     ))}
                   </div>
@@ -1026,6 +1098,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
                       file.size,
                       () => handleStorageFileSelect(file),
                       (e) => handleDeleteStorageFile(file.name, e),
+                      (e) => handleRenameStorageFile(file.name, file.originalName, e),
                       "text-emerald-500"
                     ))}
                   </div>
@@ -1043,6 +1116,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
                       undefined,
                       () => handleLocalFileSelect(file),
                       (e) => handleDeleteLocalFile(file.name, e),
+                      undefined,
                       "text-blue-500"
                     ))}
                   </div>
@@ -1056,6 +1130,12 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
               )}
             </>
           )}
+        </div>
+      )}
+
+      {infoMessage && (
+        <div className="mt-4 p-3 rounded-md bg-blue-500/10 border border-blue-500/30">
+          <p className="text-sm text-blue-400">{infoMessage}</p>
         </div>
       )}
 
