@@ -255,13 +255,13 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
   const loadServerFiles = useCallback(async () => {
     if (!user) return;
     setServerLoading(true);
+    const username = user.username || user.id || "";
     
     try {
       const [allStatic, supabaseFiles] = await Promise.all([
         fetch(`${BASE_PATH}/data/files.json`).then((res) => res.json()).catch(() => []),
-        USE_SUPABASE_STORAGE && isSupabaseConfigured() ? listFiles() : Promise.resolve([]),
+        USE_SUPABASE_STORAGE && isSupabaseConfigured() ? listFiles(username) : Promise.resolve([]),
       ]);
-      const username = user.username || user.id || "";
       const staticFiltered = Array.isArray(allStatic)
         ? allStatic.filter((f: ServerFile) => {
             const p = f.path ?? f.name;
@@ -312,9 +312,10 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
           throw new Error("유효한 거래 데이터를 찾을 수 없습니다.");
         }
 
-        if (USE_SUPABASE_STORAGE && isSupabaseConfigured()) {
+        if (USE_SUPABASE_STORAGE && isSupabaseConfigured() && user) {
+          const uploadUsername = user.username || user.id;
           setUploadProgress("서버에 업로드 중...");
-          const result = await uploadFile(file);
+          const result = await uploadFile(file, uploadUsername);
           if (result) {
             log("info", `Uploaded to storage: ${result.path}`);
             setUploadProgress("업로드 완료!");
