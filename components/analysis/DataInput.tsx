@@ -12,6 +12,7 @@ interface DataInputProps {
 
 interface ServerFile {
   name: string;
+  path?: string;
   size: number;
   modified: string;
 }
@@ -411,7 +412,8 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
       setFileName(file.name);
 
       try {
-        const response = await fetch(`${BASE_PATH}/data/${encodeURIComponent(file.name)}`);
+        const fetchPath = file.path ?? file.name;
+        const response = await fetch(`${BASE_PATH}/data/${encodeURIComponent(fetchPath)}`);
         if (!response.ok) {
           throw new Error("파일을 가져올 수 없습니다.");
         }
@@ -991,7 +993,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
                   <div className="space-y-1 max-h-[300px] overflow-y-auto">
                     {serverFiles.map((file) => renderFileItem(
                       "static",
-                      file.name,
+                      file.path ?? file.name,
                       file.name,
                       file.size,
                       () => handleServerFileSelect(file),

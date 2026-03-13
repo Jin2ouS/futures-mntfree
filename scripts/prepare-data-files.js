@@ -10,31 +10,37 @@ function prepareDataFiles() {
     fs.mkdirSync(PUBLIC_DATA_DIR, { recursive: true });
   }
 
-  // Get all xlsx files from data directory
+  // Get all xlsx files from data directory (including subdirs like data/jin2ous/)
   const files = [];
   
-  if (fs.existsSync(DATA_DIR)) {
-    const entries = fs.readdirSync(DATA_DIR);
-    
+  function scanDir(dir, prefix = '') {
+    if (!fs.existsSync(dir)) return;
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
-      if (entry.endsWith('.xlsx') || entry.endsWith('.xls')) {
-        const sourcePath = path.join(DATA_DIR, entry);
-        const destPath = path.join(PUBLIC_DATA_DIR, entry);
-        
-        // Copy file to public/data
-        fs.copyFileSync(sourcePath, destPath);
-        
-        const stats = fs.statSync(sourcePath);
+      const fullPath = path.join(dir, entry.name);
+      const relPath = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        scanDir(fullPath, relPath);
+      } else if (entry.name.endsWith('.xlsx') || entry.name.endsWith('.xls')) {
+        const destDir = path.join(PUBLIC_DATA_DIR, prefix);
+        const destPath = path.join(destDir, entry.name);
+        if (!fs.existsSync(destDir)) {
+          fs.mkdirSync(destDir, { recursive: true });
+        }
+        fs.copyFileSync(fullPath, destPath);
+        const stats = fs.statSync(fullPath);
         files.push({
-          name: entry,
+          name: entry.name,
+          path: relPath,
           size: stats.size,
           modified: stats.mtime.toISOString(),
         });
-        
-        console.log(`Copied: ${entry}`);
+        console.log(`Copied: ${relPath}`);
       }
     }
   }
+  
+  scanDir(DATA_DIR);
 
   // Sort by modified date (newest first)
   files.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
