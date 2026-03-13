@@ -1000,7 +1000,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
 
               {serverFiles.length > 0 && (
                 <div>
-                  <p className="text-xs text-[var(--muted)] mb-2">서버 파일 (정적)</p>
+                  <p className="text-xs text-[var(--muted)] mb-2">서버 파일 (내부)</p>
                   <div className="space-y-1 max-h-[300px] overflow-y-auto">
                     {serverFiles.map((file) => renderFileItem(
                       "static",
@@ -1017,7 +1017,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
 
               {storageFiles.length > 0 && (
                 <div>
-                  <p className="text-xs text-[var(--muted)] mb-2">서버 파일 (업로드)</p>
+                  <p className="text-xs text-[var(--muted)] mb-2">서버 파일 (외부)</p>
                   <div className="space-y-1 max-h-[400px] overflow-y-auto">
                     {storageFiles.map((file) => renderFileItem(
                       "storage",
