@@ -35,10 +35,10 @@ if (!supabaseUrl || !serviceRoleKey) {
 
 const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
-// 비밀번호: 778800 (Supabase 기본 최소 6자. 기존 사용자도 seed 재실행 시 778800으로 갱신됨)
+// 비밀번호 7788. (Supabase Auth는 내부적으로 email 식별자 사용, 사용자 화면에는 ID만 노출)
 const USERS = [
-  { email: "admin@futures.mntfree.local", password: "778800", username: "admin", role: "admin" },
-  { email: "jin2ous@futures.mntfree.local", password: "778800", username: "jin2ous", role: "user" },
+  { email: "admin@futures.mntfree.local", password: "7788", username: "admin", role: "admin" },
+  { email: "jin2ous@futures.mntfree.local", password: "7788", username: "jin2ous", role: "user" },
 ];
 
 async function seed() {

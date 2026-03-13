@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { getSupabaseClient } from "@/lib/supabase";
+import { verifyCredentials, setSession } from "@/lib/auth/simpleAuth";
 
 function LoginForm() {
   const router = useRouter();
@@ -14,32 +14,20 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
-
-    const client = getSupabaseClient();
-    if (!client) {
-      setError("인증이 설정되지 않았습니다.");
+    const user = verifyCredentials(userId.trim(), password);
+    if (!user) {
+      setError("아이디 또는 비밀번호가 올바르지 않습니다.");
       setLoading(false);
       return;
     }
-
-    try {
-      const email = userId.includes("@") ? userId : `${userId}@futures.mntfree.local`;
-      const { error: signInError } = await client.auth.signInWithPassword({ email, password });
-      if (signInError) {
-        setError(signInError.message === "Invalid login credentials" ? "아이디 또는 비밀번호가 올바르지 않습니다." : signInError.message);
-        return;
-      }
-      router.push(returnUrl);
-      router.refresh();
-    } catch (err) {
-      setError("로그인 중 오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
-    }
+    setSession(user);
+    setLoading(false);
+    router.push(returnUrl);
+    router.refresh();
   };
 
   return (

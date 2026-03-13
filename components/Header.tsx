@@ -22,7 +22,7 @@ export default function Header() {
             <span className="text-sm text-[var(--muted)]">...</span>
           ) : user ? (
             <>
-              <span className="text-sm text-[var(--muted)]">{user.username || user.email}</span>
+              <span className="text-sm text-[var(--muted)]">{user.username}</span>
               <button
                 type="button"
                 onClick={() => logout().then(() => router.push("/"))}

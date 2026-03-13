@@ -27,6 +27,7 @@ interface LocalFile {
 const LOCAL_STORAGE_KEY = "futures-uploaded-files";
 const BASE_PATH = "";
 const DEBUG = true;
+const USE_SUPABASE_STORAGE = false;
 
 function log(level: "info" | "warn" | "error", message: string, data?: unknown) {
   const timestamp = new Date().toISOString();
@@ -258,9 +259,9 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
     try {
       const [allStatic, supabaseFiles] = await Promise.all([
         fetch(`${BASE_PATH}/data/files.json`).then((res) => res.json()).catch(() => []),
-        isSupabaseConfigured() && user.id ? listFiles(user.id) : Promise.resolve([]),
+        USE_SUPABASE_STORAGE && user.id ? listFiles(user.id) : Promise.resolve([]),
       ]);
-      const username = user.username || user.email?.split("@")[0] || "";
+      const username = user.username || user.id || "";
       const staticFiltered = Array.isArray(allStatic)
         ? allStatic.filter((f: ServerFile) => {
             const p = f.path ?? f.name;
@@ -311,7 +312,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
           throw new Error("유효한 거래 데이터를 찾을 수 없습니다.");
         }
 
-        if (isSupabaseConfigured() && user?.id) {
+        if (USE_SUPABASE_STORAGE && user?.id) {
           setUploadProgress("서버에 업로드 중...");
           const result = await uploadFile(file, user.id);
           if (result) {
