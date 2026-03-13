@@ -9,7 +9,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl") || "/";
-  const [email, setEmail] = useState("");
+  const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,9 +27,10 @@ function LoginForm() {
     }
 
     try {
+      const email = userId.includes("@") ? userId : `${userId}@futures.mntfree.local`;
       const { error: signInError } = await client.auth.signInWithPassword({ email, password });
       if (signInError) {
-        setError(signInError.message === "Invalid login credentials" ? "이메일 또는 비밀번호가 올바르지 않습니다." : signInError.message);
+        setError(signInError.message === "Invalid login credentials" ? "아이디 또는 비밀번호가 올바르지 않습니다." : signInError.message);
         return;
       }
       router.push(returnUrl);
@@ -55,15 +56,15 @@ function LoginForm() {
             </div>
           )}
           <div>
-            <label htmlFor="email" className="block text-sm font-medium mb-1.5">
-              이메일 (ID)
+            <label htmlFor="userId" className="block text-sm font-medium mb-1.5">
+              아이디
             </label>
             <input
-              id="email"
+              id="userId"
               type="text"
-              placeholder="admin@futures.mntfree.local"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              placeholder="admin 또는 jin2ous"
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
               required
               autoComplete="username"
               className="w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"

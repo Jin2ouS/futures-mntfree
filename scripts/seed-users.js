@@ -35,21 +35,27 @@ if (!supabaseUrl || !serviceRoleKey) {
 
 const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
+// 비밀번호: 778800 (Supabase 기본 최소 6자. 기존 사용자도 seed 재실행 시 778800으로 갱신됨)
 const USERS = [
-  { email: "admin@futures.mntfree.local", password: "7788", username: "admin", role: "admin" },
-  { email: "jin2ous@futures.mntfree.local", password: "7788", username: "jin2ous", role: "user" },
+  { email: "admin@futures.mntfree.local", password: "778800", username: "admin", role: "admin" },
+  { email: "jin2ous@futures.mntfree.local", password: "778800", username: "jin2ous", role: "user" },
 ];
 
 async function seed() {
   for (const u of USERS) {
     try {
-      const { data: existing } = await supabase.auth.admin.listUsers();
-      const found = existing?.users?.find((x) => x.email === u.email);
+      const { data: listData } = await supabase.auth.admin.listUsers();
+      const found = listData?.users?.find((x) => x.email === u.email);
       if (found) {
-        console.log(`이미 존재: ${u.email} (${u.username})`);
+        const { error: updateErr } = await supabase.auth.admin.updateUserById(found.id, { password: u.password });
+        if (updateErr) {
+          console.log(`기존 사용자 ${u.email} - 비밀번호 갱신 실패:`, updateErr.message);
+        } else {
+          console.log(`기존 사용자 비밀번호 갱신: ${u.email} (${u.username})`);
+        }
         continue;
       }
-      const { data, error } = await supabase.auth.admin.createUser({
+      const { error } = await supabase.auth.admin.createUser({
         email: u.email,
         password: u.password,
         email_confirm: true,
