@@ -1,8 +1,46 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { startOfWeek, format } from "date-fns";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import {
+  startOfWeek,
+  format,
+  startOfYear,
+  startOfMonth,
+  subDays,
+  addWeeks,
+  differenceInDays,
+} from "date-fns";
 import type { DateRange } from "@/lib/types";
+
+type PresetType = "1w" | "4w" | "ytd" | "mtd";
+
+function getPresetRange(preset: PresetType): { start: string; end: string } {
+  const today = new Date();
+  const todayStr = format(today, "yyyy-MM-dd");
+
+  switch (preset) {
+    case "1w": {
+      const monday = startOfWeek(today, { weekStartsOn: 1 });
+      return { start: format(monday, "yyyy-MM-dd"), end: todayStr };
+    }
+    case "4w": {
+      const cutoff = subDays(today, 27);
+      let candidateMonday = startOfWeek(cutoff, { weekStartsOn: 1 });
+      if (differenceInDays(today, candidateMonday) > 28) {
+        candidateMonday = addWeeks(candidateMonday, 1);
+      }
+      return { start: format(candidateMonday, "yyyy-MM-dd"), end: todayStr };
+    }
+    case "ytd": {
+      const yearStart = startOfYear(today);
+      return { start: format(yearStart, "yyyy-MM-dd"), end: todayStr };
+    }
+    case "mtd": {
+      const monthStart = startOfMonth(today);
+      return { start: format(monthStart, "yyyy-MM-dd"), end: todayStr };
+    }
+  }
+}
 
 interface DateFilterProps {
   onChange: (range: DateRange) => void;
@@ -39,6 +77,16 @@ export default function DateFilter({ onChange, minDate, maxDate }: DateFilterPro
     }
   }, [minDate, maxDate, defaultRange, initialized]);
 
+  const applyPreset = useCallback(
+    (preset: PresetType) => {
+      setIsFullRange(false);
+      const { start, end } = getPresetRange(preset);
+      setStartDate(start);
+      setEndDate(end);
+    },
+    []
+  );
+
   useEffect(() => {
     onChange({
       startDate: isFullRange ? null : startDate || null,
@@ -61,16 +109,34 @@ export default function DateFilter({ onChange, minDate, maxDate }: DateFilterPro
       </label>
 
       <div className="space-y-2">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="radio"
-            name="dateRange"
-            checked={!isFullRange}
-            onChange={() => setIsFullRange(false)}
-            className="w-4 h-4 border-[var(--border)] bg-white/5 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
-          />
-          <span className="text-sm text-[var(--foreground)]">기간 설정</span>
-        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="dateRange"
+              checked={!isFullRange}
+              onChange={() => setIsFullRange(false)}
+              className="w-4 h-4 border-[var(--border)] bg-white/5 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
+            />
+            <span className="text-sm text-[var(--foreground)]">기간 설정</span>
+          </label>
+          <div className="flex gap-1.5 pl-2">
+            {(["1w", "4w", "ytd", "mtd"] as const).map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => applyPreset(preset)}
+                disabled={isFullRange}
+                className="px-2.5 py-1 text-xs rounded-md bg-white/5 border border-[var(--border)] text-[var(--foreground)] hover:bg-white/10 focus:outline-none focus:border-[var(--muted)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/5"
+              >
+                {preset === "1w" && "최근 1주"}
+                {preset === "4w" && "최근 4주"}
+                {preset === "ytd" && "YTD"}
+                {preset === "mtd" && "MTD"}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="flex items-center gap-2 pl-6">
           <input
