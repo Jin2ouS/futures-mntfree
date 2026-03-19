@@ -235,9 +235,9 @@ export default function ProfitCalendar({ data, trades }: ProfitCalendarProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex-1" />
-        <div className="flex items-center gap-4">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+        <div />
+        <div className="flex items-center justify-center gap-4">
           <button
             onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
             className="p-2 rounded-md hover:bg-white/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
@@ -245,7 +245,7 @@ export default function ProfitCalendar({ data, trades }: ProfitCalendarProps) {
             <ChevronLeft className="h-5 w-5" />
           </button>
           <span className="text-lg font-semibold text-[var(--foreground)] min-w-[120px] text-center">
-            {format(currentMonth, "yyyy/MM")}
+            {format(currentMonth, "yyyy년 M월")}
           </span>
           <button
             onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
@@ -254,7 +254,7 @@ export default function ProfitCalendar({ data, trades }: ProfitCalendarProps) {
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
-        <label className="flex items-center gap-2 cursor-pointer text-xs flex-shrink-0">
+        <label className="flex items-center gap-2 cursor-pointer text-xs justify-self-end">
           <input
             type="checkbox"
             checked={showWeekends}

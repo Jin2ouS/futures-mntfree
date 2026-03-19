@@ -92,7 +92,7 @@ export default function AnalysisTabs({ daily, weekly, monthly, trades }: Analysi
       <div className="p-4 space-y-6">
         {/* Chart Section - Always visible */}
         <div>
-          <h3 className="text-sm font-medium text-[var(--muted)] mb-3">차트</h3>
+          <h3 className="text-base font-semibold text-[var(--foreground)] mb-3">차트</h3>
           <ProfitChart 
             data={getData} 
             type={activeTab} 
@@ -104,7 +104,7 @@ export default function AnalysisTabs({ daily, weekly, monthly, trades }: Analysi
         {/* Table Section - With optional calendar view for daily */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-[var(--muted)]">테이블</h3>
+            <h3 className="text-base font-semibold text-[var(--foreground)]">거래 내역</h3>
             {activeTab === "daily" && (
               <div className="flex items-center gap-1 bg-white/5 rounded-md p-0.5">
                 <button
