@@ -46,6 +46,7 @@ export default function ProfitCalendar({ data, trades }: ProfitCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(initialMonth);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedWeekIdx, setSelectedWeekIdx] = useState<number | null>(null);
+  const [showWeekends, setShowWeekends] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("청산시간");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
 
@@ -230,31 +231,45 @@ export default function ProfitCalendar({ data, trades }: ProfitCalendarProps) {
     return value >= 0 ? `+$${formatted}` : `-$${formatted}`;
   };
 
+  const visibleWeekdays = showWeekends ? WEEKDAYS : WEEKDAYS.slice(0, 5);
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-center gap-4">
-        <button
-          onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-          className="p-2 rounded-md hover:bg-white/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <span className="text-lg font-semibold text-[var(--foreground)] min-w-[120px] text-center">
-          {format(currentMonth, "yyyy/MM")}
-        </span>
-        <button
-          onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-          className="p-2 rounded-md hover:bg-white/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1" />
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+            className="p-2 rounded-md hover:bg-white/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <span className="text-lg font-semibold text-[var(--foreground)] min-w-[120px] text-center">
+            {format(currentMonth, "yyyy/MM")}
+          </span>
+          <button
+            onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+            className="p-2 rounded-md hover:bg-white/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
+        <label className="flex items-center gap-2 cursor-pointer text-xs flex-shrink-0">
+          <input
+            type="checkbox"
+            checked={showWeekends}
+            onChange={(e) => setShowWeekends(e.target.checked)}
+            className="w-3.5 h-3.5 rounded border-[var(--border)] bg-white/5 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
+          />
+          <span className="text-[var(--muted)]">주말 표시</span>
+        </label>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr>
-              {WEEKDAYS.map((day, idx) => (
+              {visibleWeekdays.map((day, idx) => (
                 <th
                   key={day}
                   className={`py-2 px-0.5 sm:px-1 text-center font-medium border-b border-[var(--border)] ${
@@ -272,7 +287,7 @@ export default function ProfitCalendar({ data, trades }: ProfitCalendarProps) {
           <tbody>
             {calendarData.map((week, weekIdx) => (
               <tr key={weekIdx}>
-                {week.map((day, dayIdx) => {
+                {(showWeekends ? week : week.slice(0, 5)).map((day, dayIdx) => {
                   const dateStr = format(day.date, "yyyy-MM-dd");
                   const isSelected = selectedDate === dateStr;
                   const isWeekSelected = selectedWeekIdx === weekIdx;
@@ -327,7 +342,7 @@ export default function ProfitCalendar({ data, trades }: ProfitCalendarProps) {
             ))}
             <tr>
               <td
-                colSpan={7}
+                colSpan={showWeekends ? 7 : 5}
                 className="py-3 px-2 text-right font-medium text-[var(--muted)] border-b border-[var(--border)]"
               >
                 월 합계
