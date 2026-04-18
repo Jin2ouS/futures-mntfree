@@ -55,13 +55,29 @@ export type UploadOptions = {
   displayName?: string;
 };
 
+export type UploadResult =
+  | { ok: true; path: string; originalName: string }
+  | { ok: false; message: string };
+
+function uploadErrorMessage(err: unknown): string {
+  if (err instanceof Error && err.message) {
+    return err.message;
+  }
+  return "알 수 없는 오류가 발생했습니다.";
+}
+
 export async function uploadFile(
   file: File,
   username: string,
   options?: UploadOptions
-): Promise<{ path: string; originalName: string } | null> {
+): Promise<UploadResult> {
   const client = getSupabaseClient();
-  if (!client || !username) return null;
+  if (!client) {
+    return { ok: false, message: "Supabase가 설정되지 않았거나 연결할 수 없습니다." };
+  }
+  if (!username) {
+    return { ok: false, message: "사용자 정보가 없어 서버에 저장할 수 없습니다." };
+  }
 
   const displayName = options?.displayName ?? file.name;
 
@@ -80,13 +96,20 @@ export async function uploadFile(
 
     if (error) {
       console.error("Upload error:", error);
-      return null;
+      const detail = error.message?.trim() || "";
+      const message = detail
+        ? `서버 저장 실패: ${detail}`
+        : "서버 저장에 실패했습니다.";
+      return { ok: false, message };
     }
 
-    return { path: data.path, originalName: displayName };
+    return { ok: true, path: data.path, originalName: displayName };
   } catch (err) {
     console.error("Upload failed:", err);
-    return null;
+    return {
+      ok: false,
+      message: `서버 저장 중 오류: ${uploadErrorMessage(err)}`,
+    };
   }
 }
 
@@ -206,8 +229,8 @@ export async function renameFile(
     const uploadResult = await uploadFile(file, username, {
       displayName: newDisplayName.trim(),
     });
-    if (!uploadResult) {
-      console.error("Rename error: Failed to upload with new name");
+    if (!uploadResult.ok) {
+      console.error("Rename error: Failed to upload with new name", uploadResult.message);
       return false;
     }
 

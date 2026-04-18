@@ -229,6 +229,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
   const [googleUrl, setGoogleUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warningMessage, setWarningMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
@@ -298,6 +299,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
       
       setLoading(true);
       setError(null);
+      setWarningMessage(null);
       setInfoMessage(null);
       setFileName(file.name);
       setUploadProgress("파일 읽는 중...");
@@ -344,7 +346,7 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
 
           setUploadProgress("서버에 업로드 중...");
           const result = await uploadFile(file, uploadUsername, { displayName });
-          if (result) {
+          if (result.ok) {
             log("info", `Uploaded to storage: ${result.path}`);
             setUploadProgress("업로드 완료!");
             await loadServerFiles();
@@ -352,14 +354,21 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
               setInfoMessage(`파일명이 기존 파일과 중복되어 "${displayName}"로 저장되었습니다. 서버파일 선택에서 확인하세요.`);
             }
           } else {
-            log("warn", "Failed to upload to storage, saving locally");
+            log("warn", "Failed to upload to storage, saving locally", result.message);
             setUploadProgress("로컬에 저장 중...");
             const savedName = saveLocalFile(file.name, buffer);
+            const renameNote = wasRenamed
+              ? `\n저장 시도 파일명: "${displayName}" (기존 파일명과 중복하여 변경됨)`
+              : "";
             if (savedName) {
               setFileName(savedName);
-              if (savedName !== file.name) {
-                setInfoMessage(`파일명이 기존 파일과 중복되어 "${savedName}"로 저장되었습니다.`);
-              }
+              setWarningMessage(
+                `${result.message}\n\n차트 데이터는 이 브라우저 세션에서만 사용할 수 있습니다. 파일은 브라우저(로컬)에만 저장되었고, 서버 파일 목록에는 나타나지 않습니다.${renameNote}`
+              );
+            } else {
+              setWarningMessage(
+                `${result.message}\n\n서버와 브라우저 모두에 파일을 남기지 못했습니다. 새로고침하면 이 파일은 복구되지 않을 수 있으며, 지금은 화면의 차트 데이터만 유지됩니다.${renameNote}`
+              );
             }
             setLocalFiles(getLocalFiles());
           }
@@ -1130,6 +1139,15 @@ export default function DataInput({ onDataLoaded }: DataInputProps) {
       {infoMessage && (
         <div className="mt-4 p-3 rounded-md bg-blue-500/10 border border-blue-500/30">
           <p className="text-sm text-blue-400">{infoMessage}</p>
+        </div>
+      )}
+
+      {warningMessage && (
+        <div className="mt-4 p-3 rounded-md bg-amber-500/10 border border-amber-500/30">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+            <pre className="text-sm text-amber-200 whitespace-pre-wrap font-sans flex-1">{warningMessage}</pre>
+          </div>
         </div>
       )}
 
