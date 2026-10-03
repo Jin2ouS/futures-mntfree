@@ -16,19 +16,9 @@ import {
 } from "recharts";
 import { Loader2 } from "lucide-react";
 import type { DailyProfit, WeeklyProfit, MonthlyProfit } from "@/lib/types";
+import { getSymbolColor, CUMULATIVE_LINE_COLOR } from "@/lib/symbolColors";
 
 type ChartData = DailyProfit[] | WeeklyProfit[] | MonthlyProfit[];
-
-const SYMBOL_COLORS: Record<string, string> = {
-  "XAUUSD.b": "#3b82f6",
-  "US100.b": "#10b981",
-  "USOIL+": "#f59e0b",
-  "EURUSD.b": "#8b5cf6",
-  "USDJPY.b": "#ec4899",
-  "BTCUSD": "#06b6d4",
-};
-
-const DEFAULT_SYMBOL_COLOR = "#6b7280";
 
 interface ProfitChartProps {
   data: ChartData;
@@ -84,10 +74,6 @@ export default function ProfitChart({ data, type, showLabels, showBySymbol = fal
       return `${(value / 1000).toFixed(1)}k`;
     }
     return value.toFixed(0);
-  };
-
-  const getSymbolColor = (symbol: string) => {
-    return SYMBOL_COLORS[symbol] || DEFAULT_SYMBOL_COLOR;
   };
 
   if (data.length === 0) {
@@ -240,10 +226,10 @@ export default function ProfitChart({ data, type, showLabels, showBySymbol = fal
             type="monotone"
             dataKey="cumulative"
             name="cumulative"
-            stroke="#3b82f6"
+            stroke={CUMULATIVE_LINE_COLOR}
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 4, fill: "#3b82f6" }}
+            activeDot={{ r: 4, fill: CUMULATIVE_LINE_COLOR }}
             xAxisId="bottom"
           >
             {showLabels && (
@@ -257,7 +243,7 @@ export default function ProfitChart({ data, type, showLabels, showBySymbol = fal
                     <text
                       x={Number(x ?? 0)}
                       y={Number(y ?? 0) - 12}
-                      fill="#3b82f6"
+                      fill={CUMULATIVE_LINE_COLOR}
                       fontSize={14}
                       fontWeight="600"
                       textAnchor="middle"

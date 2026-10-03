@@ -11,23 +11,11 @@ import {
 } from "recharts";
 import { BarChart2, Table as TableIcon, Loader2 } from "lucide-react";
 import type { SymbolStats as SymbolStatsType } from "@/lib/types";
+import { getSymbolColor, LOSS_COLOR } from "@/lib/symbolColors";
 
 interface SymbolStatsProps {
   data: SymbolStatsType[];
 }
-
-const PROFIT_COLORS = [
-  "#3b82f6",
-  "#10b981",
-  "#f59e0b",
-  "#8b5cf6",
-  "#ec4899",
-  "#06b6d4",
-  "#84cc16",
-  "#14b8a6",
-];
-
-const LOSS_COLOR = "#ef4444";
 
 const VOLUME_CORRECTION: Record<string, number> = {
   "XAUUSD.b": 10,
@@ -113,37 +101,29 @@ export default function SymbolStats({ data }: SymbolStatsProps) {
 
   const chartData = useMemo(() => {
     if (processedData.length === 0) return [];
-    let profitColorIndex = 0;
     return processedData.map((item) => {
       let value: number;
       let originalValue: number;
-      let fill: string;
       let isNegative = false;
 
       if (chartDataType === "trades") {
         value = item.tradeCount;
         originalValue = item.tradeCount;
-        fill = PROFIT_COLORS[profitColorIndex % PROFIT_COLORS.length];
-        profitColorIndex++;
       } else if (chartDataType === "profit") {
         value = Math.abs(item.totalProfit);
         originalValue = item.totalProfit;
         isNegative = item.totalProfit < 0;
-        fill = isNegative ? LOSS_COLOR : PROFIT_COLORS[profitColorIndex % PROFIT_COLORS.length];
-        if (!isNegative) profitColorIndex++;
       } else {
         const correctedVolume = getCorrectedVolume(item.symbol, item.totalVolume);
         value = correctedVolume;
         originalValue = correctedVolume;
-        fill = PROFIT_COLORS[profitColorIndex % PROFIT_COLORS.length];
-        profitColorIndex++;
       }
 
       return {
         name: item.symbol,
         value,
         originalValue,
-        fill,
+        fill: getSymbolColor(item.symbol),
         isNegative,
       };
     });
@@ -368,7 +348,7 @@ export default function SymbolStats({ data }: SymbolStatsProps) {
               </tr>
             </thead>
             <tbody>
-              {processedData.map((item, index) => (
+              {processedData.map((item) => (
                 <tr
                   key={item.symbol}
                   className="border-b border-[var(--border)]/50 hover:bg-white/[0.02]"
@@ -377,7 +357,7 @@ export default function SymbolStats({ data }: SymbolStatsProps) {
                     <div className="flex items-center gap-2">
                       <span
                         className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: PROFIT_COLORS[index % PROFIT_COLORS.length] }}
+                        style={{ backgroundColor: getSymbolColor(item.symbol) }}
                       />
                       {item.symbol}
                     </div>
