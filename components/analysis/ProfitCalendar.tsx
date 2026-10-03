@@ -92,20 +92,18 @@ export default function ProfitCalendar({ data, trades }: ProfitCalendarProps) {
 
   const weeklyTotals = useMemo(() => {
     return calendarData.map((week) => {
-      const total = week.reduce((sum, day) => {
-        if (day.isCurrentMonth && day.profit !== null) {
-          return sum + day.profit;
-        }
-        return sum;
-      }, 0);
-      const hasData = week.some((day) => day.isCurrentMonth && day.profit !== null);
+      const total = week.reduce((sum, day) => sum + (day.profit ?? 0), 0);
+      const hasData = week.some((day) => day.profit !== null);
       return hasData ? total : null;
     });
   }, [calendarData]);
 
   const monthTotal = useMemo(() => {
-    return weeklyTotals.reduce<number>((sum, total) => sum + (total ?? 0), 0);
-  }, [weeklyTotals]);
+    return calendarData.flat().reduce(
+      (sum, day) => (day.isCurrentMonth && day.profit !== null ? sum + day.profit : sum),
+      0
+    );
+  }, [calendarData]);
 
   const handleDateClick = (dateStr: string, isCurrentMonth: boolean, hasProfit: boolean) => {
     if (!isCurrentMonth || !hasProfit) return;
@@ -128,9 +126,7 @@ export default function ProfitCalendar({ data, trades }: ProfitCalendarProps) {
     }
     if (selectedWeekIdx !== null && calendarData[selectedWeekIdx]) {
       const weekDates = new Set(
-        calendarData[selectedWeekIdx]
-          .filter((d) => d.isCurrentMonth)
-          .map((d) => format(d.date, "yyyy-MM-dd"))
+        calendarData[selectedWeekIdx].map((d) => format(d.date, "yyyy-MM-dd"))
       );
       return trades.filter((t) => {
         if (!t.청산시간) return false;
@@ -300,7 +296,7 @@ export default function ProfitCalendar({ data, trades }: ProfitCalendarProps) {
                         !day.isCurrentMonth ? "opacity-30" : ""
                       } ${hasProfit ? "cursor-pointer hover:bg-white/5" : ""} ${
                         isSelected ? "bg-blue-500/20 ring-1 ring-blue-500/50" : ""
-                      } ${isWeekSelected && day.isCurrentMonth ? "bg-white/5" : ""}`}
+                      } ${isWeekSelected ? "bg-white/5" : ""}`}
                     >
                       <div
                         className={`text-xs mb-1 ${
@@ -309,7 +305,7 @@ export default function ProfitCalendar({ data, trades }: ProfitCalendarProps) {
                       >
                         {format(day.date, "d")}
                       </div>
-                      {day.profit !== null && day.isCurrentMonth && (
+                      {day.profit !== null && (
                         <div
                           className={`text-xs font-medium ${
                             day.profit >= 0 ? "text-blue-400" : "text-red-400"
